@@ -25,4 +25,4 @@ import { StellarModule } from '../stellar/stellar.module';
   providers: [GroupsService, WinstonLogger, JwtAuthGuard],
   exports: [GroupsService],
 })
-export class GroupsModule { }
+export class GroupsModule {}

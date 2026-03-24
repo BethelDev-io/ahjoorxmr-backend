@@ -59,7 +59,7 @@ import { ErrorResponseDto } from '../common/dto/error-response.dto';
 @Version('1')
 @SetMetadata('deprecated', true)
 export class GroupsController {
-  constructor(private readonly groupsService: GroupsService) { }
+  constructor(private readonly groupsService: GroupsService) {}
 
   /**
    * Creates a new ROSCA group with status PENDING.
@@ -151,7 +151,11 @@ export class GroupsController {
     @Query('includeArchived', new DefaultValuePipe(false), ParseBoolPipe)
     includeArchived: boolean,
   ): Promise<PaginatedGroupsResponseDto> {
-    const result = await this.groupsService.findAll(page, limit, includeArchived);
+    const result = await this.groupsService.findAll(
+      page,
+      limit,
+      includeArchived,
+    );
     return {
       data: result.data.map((g) => this.toGroupResponse(g)),
       total: result.total,
@@ -299,13 +303,26 @@ export class GroupsController {
   @HttpCode(HttpStatus.NO_CONTENT)
   @ApiOperation({
     summary: 'Archive (soft-delete) a group',
-    description: 'Soft-deletes a group by setting deletedAt. Only the group admin can delete.',
+    description:
+      'Soft-deletes a group by setting deletedAt. Only the group admin can delete.',
   })
   @ApiParam({ name: 'id', description: 'Group UUID', format: 'uuid' })
   @ApiResponse({ status: 204, description: 'Group archived successfully' })
-  @ApiResponse({ status: 401, description: 'Unauthorized', type: ErrorResponseDto })
-  @ApiResponse({ status: 403, description: 'Forbidden - only group admin can delete', type: ErrorResponseDto })
-  @ApiResponse({ status: 404, description: 'Group not found', type: ErrorResponseDto })
+  @ApiResponse({
+    status: 401,
+    description: 'Unauthorized',
+    type: ErrorResponseDto,
+  })
+  @ApiResponse({
+    status: 403,
+    description: 'Forbidden - only group admin can delete',
+    type: ErrorResponseDto,
+  })
+  @ApiResponse({
+    status: 404,
+    description: 'Group not found',
+    type: ErrorResponseDto,
+  })
   @AuditLog({ action: 'DELETE', resource: 'GROUP' })
   async remove(
     @Request() req: { user: { id: string; walletAddress: string } },
