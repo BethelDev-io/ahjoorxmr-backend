@@ -4,7 +4,7 @@ import { User } from './entities/user.entity';
 
 @Injectable()
 export class UsersService {
-  constructor(private readonly userRepository: UserRepository) {}
+  constructor(private readonly userRepository: UserRepository) { }
 
   async findById(id: string): Promise<User> {
     const user = await this.userRepository.findOne({ where: { id } });
@@ -32,6 +32,20 @@ export class UsersService {
     refreshTokenHash: string | null,
   ): Promise<void> {
     await this.userRepository.update(userId, { refreshTokenHash });
+  }
+
+  async incrementTokenVersion(userId: string): Promise<number> {
+    const user = await this.findById(userId);
+    const newVersion = (user.tokenVersion || 0) + 1;
+    await this.userRepository.update(userId, { tokenVersion: newVersion });
+    return newVersion;
+  }
+
+  async revokeAllSessions(userId: string): Promise<void> {
+    await this.userRepository.update(userId, {
+      refreshTokenHash: null,
+      tokenVersion: (await this.findById(userId)).tokenVersion + 1,
+    });
   }
 
   async upsertByWalletAddress(walletAddress: string): Promise<User> {
