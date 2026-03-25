@@ -11,6 +11,7 @@ import { AuthModule } from './auth/auth.module';
 import { UsersModule } from './users/users.module';
 import { GroupsModule } from './groups/groups.module';
 import { MembershipsModule } from './memberships/memberships.module';
+import { GroupsModule } from './groups/groups.module';
 import { ContributionsModule } from './contributions/contributions.module';
 import { SchedulerModule } from './scheduler/scheduler.module';
 import { Membership } from './memberships/entities/membership.entity';
@@ -64,6 +65,7 @@ import { SeedModule } from './database/seeds/seed.module';
     UsersModule,
     GroupsModule,
     MembershipsModule,
+    GroupsModule,
     ContributionsModule,
     StellarModule,
     EventListenerModule,

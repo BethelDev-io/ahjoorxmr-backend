@@ -3,6 +3,7 @@ import {
   Post,
   Delete,
   Get,
+  Patch,
   HttpCode,
   HttpStatus,
   Param,
@@ -21,6 +22,7 @@ import {
 } from '@nestjs/swagger';
 import { MembershipsService } from './memberships.service';
 import { CreateMembershipDto } from './dto/create-membership.dto';
+import { UpdatePayoutOrderDto } from './dto/update-payout-order.dto';
 import { MembershipResponseDto } from './dto/membership-response.dto';
 import { RecordPayoutDto } from './dto/record-payout.dto';
 import { JwtAuthGuard } from '../groups/guards/jwt-auth.guard';

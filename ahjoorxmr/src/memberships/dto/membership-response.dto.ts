@@ -69,3 +69,4 @@ export class MembershipResponseDto {
   })
   updatedAt: string;
 }
+

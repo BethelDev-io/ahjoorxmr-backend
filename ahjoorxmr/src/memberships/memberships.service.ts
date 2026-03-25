@@ -10,6 +10,7 @@ import { Membership } from './entities/membership.entity';
 import { Group } from '../groups/entities/group.entity';
 import { WinstonLogger } from '../common/logger/winston.logger';
 import { CreateMembershipDto } from './dto/create-membership.dto';
+import { UpdatePayoutOrderDto } from './dto/update-payout-order.dto';
 import { MembershipStatus } from './entities/membership-status.enum';
 import { NotificationsService } from '../notification/notifications.service';
 import { NotificationType } from '../notification/notification-type.enum';
@@ -65,12 +66,32 @@ export class MembershipsService {
   /**
    * Calculates the next available payout order position for a new member.
    * Returns 0 if this is the first member, otherwise returns max(payoutOrder) + 1.
+   * Returns null if the group uses RANDOM or ADMIN_DEFINED strategy.
    *
    * @param groupId - The UUID of the group
-   * @returns The next sequential payout order position
+   * @returns The next sequential payout order position or null
    * @private
    */
-  private async getNextPayoutOrder(groupId: string): Promise<number> {
+  private async getNextPayoutOrder(groupId: string): Promise<number | null> {
+    // Get the group to check its payout order strategy
+    const group = await this.groupRepository.findOne({
+      where: { id: groupId },
+    });
+
+    if (!group) {
+      throw new NotFoundException('Group not found');
+    }
+
+    // For RANDOM or ADMIN_DEFINED strategies, return null
+    // Payout order will be assigned at activation time
+    if (
+      group.payoutOrderStrategy === 'RANDOM' ||
+      group.payoutOrderStrategy === 'ADMIN_DEFINED'
+    ) {
+      return null;
+    }
+
+    // For SEQUENTIAL strategy, calculate next order
     const result = await this.membershipRepository
       .createQueryBuilder('membership')
       .select('MAX(membership.payoutOrder)', 'maxOrder')
@@ -135,7 +156,7 @@ export class MembershipsService {
         throw new ConflictException('User is already a member of this group');
       }
 
-      // Calculate next available payout order
+      // Calculate next available payout order (null for RANDOM/ADMIN_DEFINED)
       const payoutOrder = await this.getNextPayoutOrder(groupId);
 
       // Create membership with default values
@@ -143,7 +164,7 @@ export class MembershipsService {
         groupId,
         userId,
         walletAddress,
-        payoutOrder,
+        payoutOrder: payoutOrder as any, // Allow null for non-SEQUENTIAL strategies
         status: MembershipStatus.ACTIVE,
         hasReceivedPayout: false,
         hasPaidCurrentRound: false,
