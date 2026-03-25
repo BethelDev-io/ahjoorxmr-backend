@@ -26,6 +26,8 @@ import { EventListenerModule } from './event-listener/event-listener.module';
 import { CustomThrottlerModule } from './throttler/throttler.module';
 import { AuditModule } from './audit/audit.module';
 import { SeedModule } from './database/seeds/seed.module';
+import { MiddlewareConsumer, NestModule } from '@nestjs/common';
+import { CorrelationIdMiddleware } from './common/middleware/correlation-id.middleware';
 
 @Module({
   imports: [
@@ -82,4 +84,8 @@ import { SeedModule } from './database/seeds/seed.module';
     },
   ],
 })
-export class AppModule {}
+export class AppModule implements NestModule {
+  configure(consumer: MiddlewareConsumer) {
+    consumer.apply(CorrelationIdMiddleware).forRoutes('*');
+  }
+}
