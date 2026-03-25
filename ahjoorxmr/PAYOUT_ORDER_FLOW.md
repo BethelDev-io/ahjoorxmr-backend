@@ -1,0 +1,381 @@
+# Payout Order Strategy Flow Diagrams
+
+## SEQUENTIAL Strategy Flow
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│                    SEQUENTIAL STRATEGY                       │
+└─────────────────────────────────────────────────────────────┘
+
+1. CREATE GROUP
+   ┌──────────────┐
+   │ POST /groups │
+   │ strategy:    │
+   │ SEQUENTIAL   │
+   └──────┬───────┘
+          │
+          ▼
+   ┌──────────────┐
+   │ Group Created│
+   │ status:      │
+   │ PENDING      │
+   └──────┬───────┘
+
+2. ADD MEMBERS
+          │
+          ▼
+   ┌──────────────────┐
+   │ POST /members    │
+   │ Alice joins      │
+   │ payoutOrder = 0  │ ← Assigned immediately
+   └──────┬───────────┘
+          │
+          ▼
+   ┌──────────────────┐
+   │ POST /members    │
+   │ Bob joins        │
+   │ payoutOrder = 1  │ ← Assigned immediately
+   └──────┬───────────┘
+          │
+          ▼
+   ┌──────────────────┐
+   │ POST /members    │
+   │ Carol joins      │
+   │ payoutOrder = 2  │ ← Assigned immediately
+   └──────┬───────────┘
+
+3. ACTIVATE GROUP
+          │
+          ▼
+   ┌──────────────────┐
+   │ POST /activate   │
+   │ No changes made  │ ← Orders remain as-is
+   └──────┬───────────┘
+          │
+          ▼
+   ┌──────────────────┐
+   │ Group ACTIVE     │
+   │ Alice: 0         │
+   │ Bob: 1           │
+   │ Carol: 2         │
+   └──────────────────┘
+```
+
+## RANDOM Strategy Flow
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│                      RANDOM STRATEGY                         │
+└─────────────────────────────────────────────────────────────┘
+
+1. CREATE GROUP
+   ┌──────────────┐
+   │ POST /groups │
+   │ strategy:    │
+   │ RANDOM       │
+   └──────┬───────┘
+          │
+          ▼
+   ┌──────────────┐
+   │ Group Created│
+   │ status:      │
+   │ PENDING      │
+   └──────┬───────┘
+
+2. ADD MEMBERS
+          │
+          ▼
+   ┌──────────────────┐
+   │ POST /members    │
+   │ Alice joins      │
+   │ payoutOrder=null │ ← Not assigned yet
+   └──────┬───────────┘
+          │
+          ▼
+   ┌──────────────────┐
+   │ POST /members    │
+   │ Bob joins        │
+   │ payoutOrder=null │ ← Not assigned yet
+   └──────┬───────────┘
+          │
+          ▼
+   ┌──────────────────┐
+   │ POST /members    │
+   │ Carol joins      │
+   │ payoutOrder=null │ ← Not assigned yet
+   └──────┬───────────┘
+
+3. ACTIVATE GROUP
+          │
+          ▼
+   ┌──────────────────────┐
+   │ POST /activate       │
+   │ Fisher-Yates Shuffle │ ← Randomize!
+   └──────┬───────────────┘
+          │
+          ▼
+   ┌──────────────────┐
+   │ Group ACTIVE     │
+   │ Alice: 2         │ ← Randomized
+   │ Bob: 0           │ ← Randomized
+   │ Carol: 1         │ ← Randomized
+   └──────────────────┘
+```
+
+## ADMIN_DEFINED Strategy Flow
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│                   ADMIN_DEFINED STRATEGY                     │
+└─────────────────────────────────────────────────────────────┘
+
+1. CREATE GROUP
+   ┌──────────────┐
+   │ POST /groups │
+   │ strategy:    │
+   │ ADMIN_DEFINED│
+   └──────┬───────┘
+          │
+          ▼
+   ┌──────────────┐
+   │ Group Created│
+   │ status:      │
+   │ PENDING      │
+   └──────┬───────┘
+
+2. ADD MEMBERS
+          │
+          ▼
+   ┌──────────────────┐
+   │ POST /members    │
+   │ Alice joins      │
+   │ payoutOrder=null │ ← Not assigned yet
+   └──────┬───────────┘
+          │
+          ▼
+   ┌──────────────────┐
+   │ POST /members    │
+   │ Bob joins        │
+   │ payoutOrder=null │ ← Not assigned yet
+   └──────┬───────────┘
+          │
+          ▼
+   ┌──────────────────┐
+   │ POST /members    │
+   │ Carol joins      │
+   │ payoutOrder=null │ ← Not assigned yet
+   └──────┬───────────┘
+
+3. ADMIN ASSIGNS ORDERS
+          │
+          ▼
+   ┌──────────────────────┐
+   │ PATCH /payout-order  │
+   │ Alice → 1            │ ← Admin assigns
+   └──────┬───────────────┘
+          │
+          ▼
+   ┌──────────────────────┐
+   │ PATCH /payout-order  │
+   │ Bob → 2              │ ← Admin assigns
+   └──────┬───────────────┘
+          │
+          ▼
+   ┌──────────────────────┐
+   │ PATCH /payout-order  │
+   │ Carol → 0            │ ← Admin assigns
+   └──────┬───────────────┘
+
+4. ACTIVATE GROUP
+          │
+          ▼
+   ┌──────────────────────┐
+   │ POST /activate       │
+   │ Validate:            │
+   │ ✓ All assigned       │
+   │ ✓ No nulls           │
+   │ ✓ No duplicates      │
+   │ ✓ No gaps (0,1,2)    │
+   └──────┬───────────────┘
+          │
+          ▼
+   ┌──────────────────┐
+   │ Group ACTIVE     │
+   │ Carol: 0         │ ← As assigned
+   │ Alice: 1         │ ← As assigned
+   │ Bob: 2           │ ← As assigned
+   └──────────────────┘
+```
+
+## Activation Logic Decision Tree
+
+```
+                    POST /activate
+                          │
+                          ▼
+                  ┌───────────────┐
+                  │ Group exists? │
+                  └───────┬───────┘
+                          │
+                    ┌─────┴─────┐
+                    │           │
+                   NO          YES
+                    │           │
+                    ▼           ▼
+            ┌──────────┐  ┌──────────────┐
+            │  404     │  │ Already      │
+            │  Error   │  │ active?      │
+            └──────────┘  └──────┬───────┘
+                                 │
+                           ┌─────┴─────┐
+                           │           │
+                          YES          NO
+                           │           │
+                           ▼           ▼
+                   ┌──────────┐  ┌──────────────┐
+                   │  400     │  │ Has members? │
+                   │  Error   │  └──────┬───────┘
+                   └──────────┘         │
+                                  ┌─────┴─────┐
+                                  │           │
+                                 NO          YES
+                                  │           │
+                                  ▼           ▼
+                          ┌──────────┐  ┌──────────────┐
+                          │  400     │  │ Check        │
+                          │  Error   │  │ Strategy     │
+                          └──────────┘  └──────┬───────┘
+                                               │
+                          ┌────────────────────┼────────────────────┐
+                          │                    │                    │
+                          ▼                    ▼                    ▼
+                   ┌─────────────┐    ┌──────────────┐    ┌──────────────┐
+                   │ SEQUENTIAL  │    │   RANDOM     │    │ADMIN_DEFINED │
+                   │             │    │              │    │              │
+                   │ No changes  │    │ Randomize    │    │ Validate     │
+                   │             │    │ orders       │    │ all assigned │
+                   └──────┬──────┘    └──────┬───────┘    └──────┬───────┘
+                          │                  │                    │
+                          │                  │              ┌─────┴─────┐
+                          │                  │              │           │
+                          │                  │            Valid      Invalid
+                          │                  │              │           │
+                          │                  │              │           ▼
+                          │                  │              │    ┌──────────┐
+                          │                  │              │    │  400     │
+                          │                  │              │    │  Error   │
+                          │                  │              │    └──────────┘
+                          │                  │              │
+                          └──────────────────┴──────────────┘
+                                             │
+                                             ▼
+                                    ┌────────────────┐
+                                    │ Set status to  │
+                                    │ ACTIVE         │
+                                    └────────┬───────┘
+                                             │
+                                             ▼
+                                    ┌────────────────┐
+                                    │ Return group   │
+                                    │ 200 OK         │
+                                    └────────────────┘
+```
+
+## Error Scenarios
+
+### ADMIN_DEFINED Validation Errors
+
+```
+Scenario 1: Null Values
+┌─────────────────────┐
+│ Members:            │
+│ Alice: 0            │
+│ Bob: null ← ERROR   │
+│ Carol: 2            │
+└─────────────────────┘
+         │
+         ▼
+┌─────────────────────┐
+│ 400 Bad Request     │
+│ "All members must   │
+│ have assigned       │
+│ payout orders"      │
+└─────────────────────┘
+
+Scenario 2: Missing Positions
+┌─────────────────────┐
+│ Members:            │
+│ Alice: 0            │
+│ Bob: 1              │
+│ Carol: 5 ← ERROR    │
+│ (Missing 2,3,4)     │
+└─────────────────────┘
+         │
+         ▼
+┌─────────────────────┐
+│ 400 Bad Request     │
+│ "Requires all       │
+│ positions 0 to 2"   │
+└─────────────────────┘
+
+Scenario 3: Duplicates
+┌─────────────────────┐
+│ Members:            │
+│ Alice: 0            │
+│ Bob: 1              │
+│ Carol: 1 ← ERROR    │
+└─────────────────────┘
+         │
+         ▼
+┌─────────────────────┐
+│ 400 Bad Request     │
+│ "Requires unique    │
+│ payout orders"      │
+└─────────────────────┘
+```
+
+## State Transitions
+
+```
+Group Lifecycle:
+
+CREATED ──────────────────────────────────────┐
+   │                                           │
+   │ Add members                               │
+   ▼                                           │
+PENDING ──────────────────────────────────────┤
+   │                                           │
+   │ POST /activate                            │
+   │                                           │
+   ├─ SEQUENTIAL: Keep orders                 │
+   ├─ RANDOM: Shuffle orders                  │
+   └─ ADMIN_DEFINED: Validate orders          │
+   │                                           │
+   ▼                                           │
+ACTIVE ◄──────────────────────────────────────┘
+   │
+   │ (No more membership changes allowed)
+   │
+   ▼
+[Payout operations...]
+```
+
+## Comparison Matrix
+
+```
+┌──────────────────┬─────────────┬─────────────┬──────────────────┐
+│ Feature          │ SEQUENTIAL  │   RANDOM    │  ADMIN_DEFINED   │
+├──────────────────┼─────────────┼─────────────┼──────────────────┤
+│ Order Assignment │ At join     │ At activate │ Manual (admin)   │
+├──────────────────┼─────────────┼─────────────┼──────────────────┤
+│ Fairness         │ Low         │ High        │ Depends on admin │
+├──────────────────┼─────────────┼─────────────┼──────────────────┤
+│ Predictability   │ High        │ Low         │ High             │
+├──────────────────┼─────────────┼─────────────┼──────────────────┤
+│ Admin Work       │ None        │ None        │ High             │
+├──────────────────┼─────────────┼─────────────┼──────────────────┤
+│ Validation       │ None        │ None        │ Strict           │
+├──────────────────┼─────────────┼─────────────┼──────────────────┤
+│ Use Case         │ Simple      │ Fair        │ Custom criteria  │
+└──────────────────┴─────────────┴─────────────┴──────────────────┘
+```

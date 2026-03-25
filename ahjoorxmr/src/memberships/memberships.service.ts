@@ -10,6 +10,7 @@ import { Membership } from './entities/membership.entity';
 import { Group } from '../groups/entities/group.entity';
 import { WinstonLogger } from '../common/logger/winston.logger';
 import { CreateMembershipDto } from './dto/create-membership.dto';
+import { UpdatePayoutOrderDto } from './dto/update-payout-order.dto';
 import { MembershipStatus } from './entities/membership-status.enum';
 
 /**
@@ -59,12 +60,32 @@ export class MembershipsService {
   /**
    * Calculates the next available payout order position for a new member.
    * Returns 0 if this is the first member, otherwise returns max(payoutOrder) + 1.
+   * Returns null if the group uses RANDOM or ADMIN_DEFINED strategy.
    *
    * @param groupId - The UUID of the group
-   * @returns The next sequential payout order position
+   * @returns The next sequential payout order position or null
    * @private
    */
-  private async getNextPayoutOrder(groupId: string): Promise<number> {
+  private async getNextPayoutOrder(groupId: string): Promise<number | null> {
+    // Get the group to check its payout order strategy
+    const group = await this.groupRepository.findOne({
+      where: { id: groupId },
+    });
+
+    if (!group) {
+      throw new NotFoundException('Group not found');
+    }
+
+    // For RANDOM or ADMIN_DEFINED strategies, return null
+    // Payout order will be assigned at activation time
+    if (
+      group.payoutOrderStrategy === 'RANDOM' ||
+      group.payoutOrderStrategy === 'ADMIN_DEFINED'
+    ) {
+      return null;
+    }
+
+    // For SEQUENTIAL strategy, calculate next order
     const result = await this.membershipRepository
       .createQueryBuilder('membership')
       .select('MAX(membership.payoutOrder)', 'maxOrder')
@@ -114,7 +135,7 @@ export class MembershipsService {
         throw new ConflictException('User is already a member of this group');
       }
 
-      // Calculate next available payout order
+      // Calculate next available payout order (null for RANDOM/ADMIN_DEFINED)
       const payoutOrder = await this.getNextPayoutOrder(groupId);
 
       // Create membership with default values
@@ -122,7 +143,7 @@ export class MembershipsService {
         groupId,
         userId,
         walletAddress,
-        payoutOrder,
+        payoutOrder: payoutOrder as any, // Allow null for non-SEQUENTIAL strategies
         status: MembershipStatus.ACTIVE,
         hasReceivedPayout: false,
         hasPaidCurrentRound: false,
@@ -273,6 +294,88 @@ export class MembershipsService {
       // Log and re-throw unexpected errors
       this.logger.error(
         `Failed to list members for group ${groupId}: ${error.message}`,
+        error.stack,
+        'MembershipsService',
+      );
+      throw error;
+    }
+  }
+
+  /**
+   * Updates the payout order for a specific membership.
+   * Only allowed for groups with ADMIN_DEFINED strategy and before activation.
+   *
+   * @param groupId - The UUID of the group
+   * @param userId - The UUID of the user
+   * @param updatePayoutOrderDto - The new payout order
+   * @returns The updated Membership entity
+   * @throws NotFoundException if the membership doesn't exist
+   * @throws BadRequestException if the group is active or strategy is not ADMIN_DEFINED
+   */
+  async updatePayoutOrder(
+    groupId: string,
+    userId: string,
+    updatePayoutOrderDto: UpdatePayoutOrderDto,
+  ): Promise<Membership> {
+    this.logger.log(
+      `Updating payout order for member ${userId} in group ${groupId}`,
+      'MembershipsService',
+    );
+
+    try {
+      // Validate group exists and is not active
+      await this.validateGroupNotActive(groupId);
+
+      // Get the group to check strategy
+      const group = await this.groupRepository.findOne({
+        where: { id: groupId },
+      });
+
+      if (!group) {
+        throw new NotFoundException('Group not found');
+      }
+
+      if (group.payoutOrderStrategy !== 'ADMIN_DEFINED') {
+        throw new BadRequestException(
+          'Payout order can only be manually set for groups with ADMIN_DEFINED strategy',
+        );
+      }
+
+      // Find the membership
+      const membership = await this.membershipRepository.findOne({
+        where: { groupId, userId },
+      });
+
+      if (!membership) {
+        this.logger.warn(
+          `Membership not found for user ${userId} in group ${groupId}`,
+          'MembershipsService',
+        );
+        throw new NotFoundException('Membership not found');
+      }
+
+      // Update payout order
+      membership.payoutOrder = updatePayoutOrderDto.payoutOrder;
+      const updatedMembership = await this.membershipRepository.save(membership);
+
+      this.logger.log(
+        `Updated payout order for member ${userId} in group ${groupId} to ${updatePayoutOrderDto.payoutOrder}`,
+        'MembershipsService',
+      );
+
+      return updatedMembership;
+    } catch (error) {
+      // Re-throw known exceptions
+      if (
+        error instanceof BadRequestException ||
+        error instanceof NotFoundException
+      ) {
+        throw error;
+      }
+
+      // Log and re-throw unexpected errors
+      this.logger.error(
+        `Failed to update payout order for member ${userId} in group ${groupId}: ${error.message}`,
         error.stack,
         'MembershipsService',
       );

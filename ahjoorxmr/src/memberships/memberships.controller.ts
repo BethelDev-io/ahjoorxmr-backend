@@ -3,20 +3,30 @@ import {
   Post,
   Delete,
   Get,
+  Patch,
   HttpCode,
   HttpStatus,
   Param,
   Body,
   ParseUUIDPipe,
 } from '@nestjs/common';
+import {
+  ApiTags,
+  ApiOperation,
+  ApiResponse,
+  ApiParam,
+  ApiBody,
+} from '@nestjs/swagger';
 import { MembershipsService } from './memberships.service';
 import { CreateMembershipDto } from './dto/create-membership.dto';
+import { UpdatePayoutOrderDto } from './dto/update-payout-order.dto';
 import { MembershipResponseDto } from './dto/membership-response.dto';
 
 /**
  * Controller for managing ROSCA group memberships.
  * Provides REST API endpoints for adding, removing, and listing group members.
  */
+@ApiTags('memberships')
 @Controller('api/v1/groups')
 export class MembershipsController {
   constructor(private readonly membershipsService: MembershipsService) {}
@@ -33,6 +43,32 @@ export class MembershipsController {
    */
   @Post(':id/members')
   @HttpCode(HttpStatus.CREATED)
+  @ApiOperation({
+    summary: 'Add a member to a group',
+    description:
+      'Adds a new member to a ROSCA group. Only allowed before group activation. ' +
+      'For SEQUENTIAL strategy, payout order is assigned automatically. ' +
+      'For RANDOM/ADMIN_DEFINED strategies, payout order is null until activation.',
+  })
+  @ApiParam({
+    name: 'id',
+    description: 'UUID of the group',
+    example: '123e4567-e89b-12d3-a456-426614174000',
+  })
+  @ApiBody({ type: CreateMembershipDto })
+  @ApiResponse({
+    status: 201,
+    description: 'Member successfully added',
+    type: MembershipResponseDto,
+  })
+  @ApiResponse({
+    status: 400,
+    description: 'Bad request - group is active or invalid data',
+  })
+  @ApiResponse({
+    status: 409,
+    description: 'Conflict - user is already a member',
+  })
   async addMember(
     @Param('id', ParseUUIDPipe) groupId: string,
     @Body() createMembershipDto: CreateMembershipDto,
@@ -69,6 +105,33 @@ export class MembershipsController {
    */
   @Delete(':id/members/:userId')
   @HttpCode(HttpStatus.NO_CONTENT)
+  @ApiOperation({
+    summary: 'Remove a member from a group',
+    description:
+      'Removes a member from a ROSCA group. Only allowed before group activation.',
+  })
+  @ApiParam({
+    name: 'id',
+    description: 'UUID of the group',
+    example: '123e4567-e89b-12d3-a456-426614174000',
+  })
+  @ApiParam({
+    name: 'userId',
+    description: 'UUID of the user to remove',
+    example: '123e4567-e89b-12d3-a456-426614174001',
+  })
+  @ApiResponse({
+    status: 204,
+    description: 'Member successfully removed',
+  })
+  @ApiResponse({
+    status: 400,
+    description: 'Bad request - group is active',
+  })
+  @ApiResponse({
+    status: 404,
+    description: 'Not found - membership does not exist',
+  })
   async removeMember(
     @Param('id', ParseUUIDPipe) groupId: string,
     @Param('userId', ParseUUIDPipe) userId: string,
@@ -84,6 +147,21 @@ export class MembershipsController {
    * @returns Array of memberships with HTTP 200 status
    */
   @Get(':id/members')
+  @ApiOperation({
+    summary: 'List all members of a group',
+    description:
+      'Returns all members of a ROSCA group ordered by payout order.',
+  })
+  @ApiParam({
+    name: 'id',
+    description: 'UUID of the group',
+    example: '123e4567-e89b-12d3-a456-426614174000',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'List of members',
+    type: [MembershipResponseDto],
+  })
   async listMembers(
     @Param('id', ParseUUIDPipe) groupId: string,
   ): Promise<MembershipResponseDto[]> {
@@ -102,5 +180,74 @@ export class MembershipsController {
       createdAt: membership.createdAt.toISOString(),
       updatedAt: membership.updatedAt.toISOString(),
     }));
+  }
+
+  /**
+   * Updates the payout order for a specific member.
+   * Only allowed for groups with ADMIN_DEFINED strategy before activation.
+   *
+   * @param groupId - The UUID of the group (validated by ParseUUIDPipe)
+   * @param userId - The UUID of the user (validated by ParseUUIDPipe)
+   * @param updatePayoutOrderDto - The new payout order
+   * @returns The updated membership with HTTP 200 status
+   * @throws BadRequestException if the group is active or strategy is not ADMIN_DEFINED
+   * @throws NotFoundException if the membership doesn't exist
+   */
+  @Patch(':id/members/:userId/payout-order')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({
+    summary: 'Update payout order for a member',
+    description:
+      'Updates the payout order for a specific member. Only allowed for groups with ADMIN_DEFINED strategy before activation.',
+  })
+  @ApiParam({
+    name: 'id',
+    description: 'UUID of the group',
+    example: '123e4567-e89b-12d3-a456-426614174000',
+  })
+  @ApiParam({
+    name: 'userId',
+    description: 'UUID of the user',
+    example: '123e4567-e89b-12d3-a456-426614174001',
+  })
+  @ApiBody({ type: UpdatePayoutOrderDto })
+  @ApiResponse({
+    status: 200,
+    description: 'Payout order successfully updated',
+    type: MembershipResponseDto,
+  })
+  @ApiResponse({
+    status: 400,
+    description:
+      'Bad request - group is active or strategy is not ADMIN_DEFINED',
+  })
+  @ApiResponse({
+    status: 404,
+    description: 'Not found - membership does not exist',
+  })
+  async updatePayoutOrder(
+    @Param('id', ParseUUIDPipe) groupId: string,
+    @Param('userId', ParseUUIDPipe) userId: string,
+    @Body() updatePayoutOrderDto: UpdatePayoutOrderDto,
+  ): Promise<MembershipResponseDto> {
+    const membership = await this.membershipsService.updatePayoutOrder(
+      groupId,
+      userId,
+      updatePayoutOrderDto,
+    );
+
+    // Transform entity to response DTO
+    return {
+      id: membership.id,
+      groupId: membership.groupId,
+      userId: membership.userId,
+      walletAddress: membership.walletAddress,
+      payoutOrder: membership.payoutOrder,
+      hasReceivedPayout: membership.hasReceivedPayout,
+      hasPaidCurrentRound: membership.hasPaidCurrentRound,
+      status: membership.status,
+      createdAt: membership.createdAt.toISOString(),
+      updatedAt: membership.updatedAt.toISOString(),
+    };
   }
 }
