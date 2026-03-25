@@ -9,6 +9,9 @@ import {
   Param,
   Body,
   ParseUUIDPipe,
+  UseGuards,
+  Request,
+  Version,
 } from '@nestjs/common';
 import {
   ApiTags,
@@ -21,13 +24,18 @@ import { MembershipsService } from './memberships.service';
 import { CreateMembershipDto } from './dto/create-membership.dto';
 import { UpdatePayoutOrderDto } from './dto/update-payout-order.dto';
 import { MembershipResponseDto } from './dto/membership-response.dto';
+import { RecordPayoutDto } from './dto/record-payout.dto';
+import { JwtAuthGuard } from '../groups/guards/jwt-auth.guard';
+import { AuditLog } from '../audit/decorators/audit-log.decorator';
+import { ErrorResponseDto } from '../common/dto/error-response.dto';
 
 /**
  * Controller for managing ROSCA group memberships.
  * Provides REST API endpoints for adding, removing, and listing group members.
  */
-@ApiTags('memberships')
-@Controller('api/v1/groups')
+@ApiTags('Memberships')
+@Controller('groups')
+@Version('1')
 export class MembershipsController {
   constructor(private readonly membershipsService: MembershipsService) {}
 
@@ -44,31 +52,33 @@ export class MembershipsController {
   @Post(':id/members')
   @HttpCode(HttpStatus.CREATED)
   @ApiOperation({
-    summary: 'Add a member to a group',
+    summary: 'Add member to group',
     description:
-      'Adds a new member to a ROSCA group. Only allowed before group activation. ' +
-      'For SEQUENTIAL strategy, payout order is assigned automatically. ' +
-      'For RANDOM/ADMIN_DEFINED strategies, payout order is null until activation.',
+      'Adds a new member to a ROSCA group. Only allowed before the group becomes active.',
   })
-  @ApiParam({
-    name: 'id',
-    description: 'UUID of the group',
-    example: '123e4567-e89b-12d3-a456-426614174000',
-  })
+  @ApiParam({ name: 'id', description: 'Group UUID', format: 'uuid' })
   @ApiBody({ type: CreateMembershipDto })
   @ApiResponse({
     status: 201,
-    description: 'Member successfully added',
+    description: 'Member added successfully',
     type: MembershipResponseDto,
   })
   @ApiResponse({
     status: 400,
-    description: 'Bad request - group is active or invalid data',
+    description: 'Invalid input data or group is already active',
+    type: ErrorResponseDto,
+  })
+  @ApiResponse({
+    status: 404,
+    description: 'Group not found',
+    type: ErrorResponseDto,
   })
   @ApiResponse({
     status: 409,
-    description: 'Conflict - user is already a member',
+    description: 'User is already a member of this group',
+    type: ErrorResponseDto,
   })
+  @AuditLog({ action: 'CREATE', resource: 'MEMBERSHIP' })
   async addMember(
     @Param('id', ParseUUIDPipe) groupId: string,
     @Body() createMembershipDto: CreateMembershipDto,
@@ -78,7 +88,6 @@ export class MembershipsController {
       createMembershipDto,
     );
 
-    // Transform entity to response DTO
     return {
       id: membership.id,
       groupId: membership.groupId,
@@ -87,6 +96,7 @@ export class MembershipsController {
       payoutOrder: membership.payoutOrder,
       hasReceivedPayout: membership.hasReceivedPayout,
       hasPaidCurrentRound: membership.hasPaidCurrentRound,
+      transactionHash: membership.transactionHash,
       status: membership.status,
       createdAt: membership.createdAt.toISOString(),
       updatedAt: membership.updatedAt.toISOString(),
@@ -106,32 +116,27 @@ export class MembershipsController {
   @Delete(':id/members/:userId')
   @HttpCode(HttpStatus.NO_CONTENT)
   @ApiOperation({
-    summary: 'Remove a member from a group',
+    summary: 'Remove member from group',
     description:
-      'Removes a member from a ROSCA group. Only allowed before group activation.',
+      'Removes a member from a ROSCA group. Only allowed before the group becomes active.',
   })
-  @ApiParam({
-    name: 'id',
-    description: 'UUID of the group',
-    example: '123e4567-e89b-12d3-a456-426614174000',
-  })
-  @ApiParam({
-    name: 'userId',
-    description: 'UUID of the user to remove',
-    example: '123e4567-e89b-12d3-a456-426614174001',
-  })
+  @ApiParam({ name: 'id', description: 'Group UUID', format: 'uuid' })
+  @ApiParam({ name: 'userId', description: 'User UUID', format: 'uuid' })
   @ApiResponse({
     status: 204,
-    description: 'Member successfully removed',
+    description: 'Member removed successfully',
   })
   @ApiResponse({
     status: 400,
-    description: 'Bad request - group is active',
+    description: 'Group is already active',
+    type: ErrorResponseDto,
   })
   @ApiResponse({
     status: 404,
-    description: 'Not found - membership does not exist',
+    description: 'Group or membership not found',
+    type: ErrorResponseDto,
   })
+  @AuditLog({ action: 'DELETE', resource: 'MEMBERSHIP' })
   async removeMember(
     @Param('id', ParseUUIDPipe) groupId: string,
     @Param('userId', ParseUUIDPipe) userId: string,
@@ -148,26 +153,25 @@ export class MembershipsController {
    */
   @Get(':id/members')
   @ApiOperation({
-    summary: 'List all members of a group',
-    description:
-      'Returns all members of a ROSCA group ordered by payout order.',
+    summary: 'List group members',
+    description: 'Lists all members of a ROSCA group, ordered by payout order',
   })
-  @ApiParam({
-    name: 'id',
-    description: 'UUID of the group',
-    example: '123e4567-e89b-12d3-a456-426614174000',
-  })
+  @ApiParam({ name: 'id', description: 'Group UUID', format: 'uuid' })
   @ApiResponse({
     status: 200,
-    description: 'List of members',
+    description: 'Successfully retrieved group members',
     type: [MembershipResponseDto],
+  })
+  @ApiResponse({
+    status: 404,
+    description: 'Group not found',
+    type: ErrorResponseDto,
   })
   async listMembers(
     @Param('id', ParseUUIDPipe) groupId: string,
   ): Promise<MembershipResponseDto[]> {
     const memberships = await this.membershipsService.listMembers(groupId);
 
-    // Transform entities to response DTOs
     return memberships.map((membership) => ({
       id: membership.id,
       groupId: membership.groupId,
@@ -176,6 +180,7 @@ export class MembershipsController {
       payoutOrder: membership.payoutOrder,
       hasReceivedPayout: membership.hasReceivedPayout,
       hasPaidCurrentRound: membership.hasPaidCurrentRound,
+      transactionHash: membership.transactionHash,
       status: membership.status,
       createdAt: membership.createdAt.toISOString(),
       updatedAt: membership.updatedAt.toISOString(),
@@ -183,60 +188,71 @@ export class MembershipsController {
   }
 
   /**
-   * Updates the payout order for a specific member.
-   * Only allowed for groups with ADMIN_DEFINED strategy before activation.
+   * Allows a member to leave a PENDING group (self-service).
+   * Members can only leave before the group becomes active.
    *
-   * @param groupId - The UUID of the group (validated by ParseUUIDPipe)
-   * @param userId - The UUID of the user (validated by ParseUUIDPipe)
-   * @param updatePayoutOrderDto - The new payout order
-   * @returns The updated membership with HTTP 200 status
-   * @throws BadRequestException if the group is active or strategy is not ADMIN_DEFINED
+   * @param groupId - The UUID of the group
+   * @param req - The authenticated request containing user information
+   * @returns No content with HTTP 204 status
+   * @throws BadRequestException if the group is ACTIVE or COMPLETED
    * @throws NotFoundException if the membership doesn't exist
    */
-  @Patch(':id/members/:userId/payout-order')
-  @HttpCode(HttpStatus.OK)
+  @Delete(':id/members/me')
+  @UseGuards(JwtAuthGuard)
+  @HttpCode(HttpStatus.NO_CONTENT)
   @ApiOperation({
-    summary: 'Update payout order for a member',
+    summary: 'Leave group (self-service)',
     description:
-      'Updates the payout order for a specific member. Only allowed for groups with ADMIN_DEFINED strategy before activation.',
+      'Allows a member to leave a PENDING group. Only allowed before the group becomes active.',
   })
-  @ApiParam({
-    name: 'id',
-    description: 'UUID of the group',
-    example: '123e4567-e89b-12d3-a456-426614174000',
-  })
-  @ApiParam({
-    name: 'userId',
-    description: 'UUID of the user',
-    example: '123e4567-e89b-12d3-a456-426614174001',
-  })
-  @ApiBody({ type: UpdatePayoutOrderDto })
+  @ApiParam({ name: 'id', description: 'Group UUID', format: 'uuid' })
   @ApiResponse({
-    status: 200,
-    description: 'Payout order successfully updated',
-    type: MembershipResponseDto,
+    status: 204,
+    description: 'Successfully left the group',
   })
   @ApiResponse({
     status: 400,
-    description:
-      'Bad request - group is active or strategy is not ADMIN_DEFINED',
+    description: 'Group is ACTIVE or COMPLETED, cannot leave',
+    type: ErrorResponseDto,
   })
   @ApiResponse({
     status: 404,
-    description: 'Not found - membership does not exist',
+    description: 'Group or membership not found',
+    type: ErrorResponseDto,
   })
-  async updatePayoutOrder(
+  @AuditLog({ action: 'DELETE', resource: 'MEMBERSHIP' })
+  async leaveGroup(
     @Param('id', ParseUUIDPipe) groupId: string,
-    @Param('userId', ParseUUIDPipe) userId: string,
-    @Body() updatePayoutOrderDto: UpdatePayoutOrderDto,
+    @Request() req: any,
+  ): Promise<void> {
+    const userId = req.user.userId;
+    await this.membershipsService.leaveGroup(groupId, userId);
+  }
+
+  /**
+   * Records a payout to a member.
+   * Admin-only endpoint that marks a member as having received their payout.
+   *
+   * @param groupId - The UUID of the group
+   * @param recordPayoutDto - Payout details (recipientUserId and transactionHash)
+   * @returns The updated membership with HTTP 200 status
+   * @throws NotFoundException if group or membership doesn't exist
+   * @throws BadRequestException if group is not ACTIVE
+   * @throws ConflictException if member already received payout
+   */
+  @Post(':id/payout')
+  @UseGuards(JwtAuthGuard)
+  @HttpCode(HttpStatus.OK)
+  async recordPayout(
+    @Param('id', ParseUUIDPipe) groupId: string,
+    @Body() recordPayoutDto: RecordPayoutDto,
   ): Promise<MembershipResponseDto> {
-    const membership = await this.membershipsService.updatePayoutOrder(
+    const membership = await this.membershipsService.recordPayout(
       groupId,
-      userId,
-      updatePayoutOrderDto,
+      recordPayoutDto.recipientUserId,
+      recordPayoutDto.transactionHash,
     );
 
-    // Transform entity to response DTO
     return {
       id: membership.id,
       groupId: membership.groupId,
@@ -245,6 +261,7 @@ export class MembershipsController {
       payoutOrder: membership.payoutOrder,
       hasReceivedPayout: membership.hasReceivedPayout,
       hasPaidCurrentRound: membership.hasPaidCurrentRound,
+      transactionHash: membership.transactionHash,
       status: membership.status,
       createdAt: membership.createdAt.toISOString(),
       updatedAt: membership.updatedAt.toISOString(),

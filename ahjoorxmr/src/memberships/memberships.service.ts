@@ -12,6 +12,9 @@ import { WinstonLogger } from '../common/logger/winston.logger';
 import { CreateMembershipDto } from './dto/create-membership.dto';
 import { UpdatePayoutOrderDto } from './dto/update-payout-order.dto';
 import { MembershipStatus } from './entities/membership-status.enum';
+import { NotificationsService } from '../notification/notifications.service';
+import { NotificationType } from '../notification/notification-type.enum';
+import { GroupStatus } from '../groups/entities/group-status.enum';
 
 /**
  * Service responsible for managing membership operations in ROSCA groups.
@@ -25,6 +28,7 @@ export class MembershipsService {
     @InjectRepository(Group)
     private readonly groupRepository: Repository<Group>,
     private readonly logger: WinstonLogger,
+    private readonly notificationsService: NotificationsService,
   ) {}
 
   /**
@@ -302,46 +306,44 @@ export class MembershipsService {
   }
 
   /**
-   * Updates the payout order for a specific membership.
-   * Only allowed for groups with ADMIN_DEFINED strategy and before activation.
+   * Allows a member to leave a PENDING group (self-service).
+   * Validates that the group is PENDING, finds the membership,
+   * removes it, and re-sequences the payoutOrder for remaining members.
    *
-   * @param groupId - The UUID of the group
-   * @param userId - The UUID of the user
-   * @param updatePayoutOrderDto - The new payout order
-   * @returns The updated Membership entity
-   * @throws NotFoundException if the membership doesn't exist
-   * @throws BadRequestException if the group is active or strategy is not ADMIN_DEFINED
+   * @param groupId - The UUID of the group to leave
+   * @param userId - The UUID of the user leaving
+   * @throws BadRequestException if the group is ACTIVE or COMPLETED
+   * @throws NotFoundException if the group or membership doesn't exist
    */
-  async updatePayoutOrder(
-    groupId: string,
-    userId: string,
-    updatePayoutOrderDto: UpdatePayoutOrderDto,
-  ): Promise<Membership> {
+  async leaveGroup(groupId: string, userId: string): Promise<void> {
     this.logger.log(
-      `Updating payout order for member ${userId} in group ${groupId}`,
+      `User ${userId} attempting to leave group ${groupId}`,
       'MembershipsService',
     );
 
     try {
-      // Validate group exists and is not active
-      await this.validateGroupNotActive(groupId);
-
-      // Get the group to check strategy
+      // Find the group
       const group = await this.groupRepository.findOne({
         where: { id: groupId },
       });
 
       if (!group) {
+        this.logger.warn(`Group ${groupId} not found`, 'MembershipsService');
         throw new NotFoundException('Group not found');
       }
 
-      if (group.payoutOrderStrategy !== 'ADMIN_DEFINED') {
+      // Validate group is PENDING
+      if (group.status !== GroupStatus.PENDING) {
+        this.logger.warn(
+          `User ${userId} attempted to leave non-PENDING group ${groupId} (status: ${group.status})`,
+          'MembershipsService',
+        );
         throw new BadRequestException(
-          'Payout order can only be manually set for groups with ADMIN_DEFINED strategy',
+          'Cannot leave a group that is ACTIVE or COMPLETED',
         );
       }
 
-      // Find the membership
+      // Find membership by groupId and userId
       const membership = await this.membershipRepository.findOne({
         where: { groupId, userId },
       });
@@ -354,16 +356,41 @@ export class MembershipsService {
         throw new NotFoundException('Membership not found');
       }
 
-      // Update payout order
-      membership.payoutOrder = updatePayoutOrderDto.payoutOrder;
-      const updatedMembership = await this.membershipRepository.save(membership);
+      const departingPayoutOrder = membership.payoutOrder;
+
+      // Delete membership from database
+      await this.membershipRepository.remove(membership);
+
+      // Re-sequence payoutOrder for remaining members
+      const remainingMembers = await this.membershipRepository.find({
+        where: { groupId },
+        order: { payoutOrder: 'ASC' },
+      });
+
+      // Update payout order for members that came after the departing member
+      for (const member of remainingMembers) {
+        if (member.payoutOrder > departingPayoutOrder) {
+          member.payoutOrder -= 1;
+          await this.membershipRepository.save(member);
+        }
+      }
+
+      // Send notification to the departing member
+      await this.notificationsService.notify({
+        userId,
+        type: NotificationType.MEMBER_LEFT,
+        title: 'Left Group',
+        body: `You have left the group "${group.name}"`,
+        metadata: {
+          groupId,
+          groupName: group.name,
+        },
+      });
 
       this.logger.log(
-        `Updated payout order for member ${userId} in group ${groupId} to ${updatePayoutOrderDto.payoutOrder}`,
+        `User ${userId} successfully left group ${groupId}`,
         'MembershipsService',
       );
-
-      return updatedMembership;
     } catch (error) {
       // Re-throw known exceptions
       if (
@@ -375,11 +402,83 @@ export class MembershipsService {
 
       // Log and re-throw unexpected errors
       this.logger.error(
-        `Failed to update payout order for member ${userId} in group ${groupId}: ${error.message}`,
+        `Failed for user ${userId} to leave group ${groupId}: ${error.message}`,
         error.stack,
         'MembershipsService',
       );
       throw error;
     }
+  }
+
+  /**
+   * Records a payout to a member.
+   * Validates group is ACTIVE, member exists and hasn't received payout yet.
+   * Marks member as paid and stores transaction hash.
+   *
+   * @param groupId - The UUID of the group
+   * @param recipientUserId - The UUID of the recipient user
+   * @param transactionHash - The blockchain transaction hash
+   * @returns The updated Membership entity
+   * @throws NotFoundException if group or membership doesn't exist
+   * @throws BadRequestException if group is not ACTIVE
+   * @throws ConflictException if member already received payout
+   */
+  async recordPayout(
+    groupId: string,
+    recipientUserId: string,
+    transactionHash: string,
+  ): Promise<Membership> {
+    this.logger.log(
+      `Recording payout for user ${recipientUserId} in group ${groupId}`,
+      'MembershipsService',
+    );
+
+    const group = await this.groupRepository.findOne({
+      where: { id: groupId },
+    });
+
+    if (!group) {
+      throw new NotFoundException('Group not found');
+    }
+
+    if (group.status !== GroupStatus.ACTIVE) {
+      throw new BadRequestException('Group must be ACTIVE to record payouts');
+    }
+
+    const membership = await this.membershipRepository.findOne({
+      where: { groupId, userId: recipientUserId },
+    });
+
+    if (!membership) {
+      throw new NotFoundException('Membership not found');
+    }
+
+    if (membership.hasReceivedPayout) {
+      throw new ConflictException('Member has already received payout');
+    }
+
+    membership.hasReceivedPayout = true;
+    membership.transactionHash = transactionHash;
+
+    const savedMembership = await this.membershipRepository.save(membership);
+
+    await this.notificationsService.notify({
+      userId: recipientUserId,
+      type: NotificationType.PAYOUT_RECEIVED,
+      title: 'Payout Received',
+      body: `You have received your payout from group "${group.name}"`,
+      metadata: {
+        groupId,
+        transactionHash,
+        amount: group.contributionAmount,
+      },
+    });
+
+    this.logger.log(
+      `Payout recorded for user ${recipientUserId} in group ${groupId}`,
+      'MembershipsService',
+    );
+
+    return savedMembership;
   }
 }

@@ -6,41 +6,67 @@ import { MembershipStatus } from '../entities/membership-status.enum';
  * Returns all membership fields with dates in ISO 8601 format.
  */
 export class MembershipResponseDto {
-  @ApiProperty({ description: 'Unique identifier for the membership' })
+  @ApiProperty({
+    description: 'Membership unique identifier',
+    example: '123e4567-e89b-12d3-a456-426614174000',
+  })
   id: string;
 
-  @ApiProperty({ description: 'UUID of the group' })
+  @ApiProperty({
+    description: 'Group unique identifier',
+    example: '123e4567-e89b-12d3-a456-426614174001',
+  })
   groupId: string;
 
-  @ApiProperty({ description: 'UUID of the user' })
+  @ApiProperty({
+    description: 'User unique identifier',
+    example: '123e4567-e89b-12d3-a456-426614174002',
+  })
   userId: string;
 
-  @ApiProperty({ description: 'Wallet address for receiving payouts' })
+  @ApiProperty({
+    description: 'Stellar wallet address of the member',
+    example: 'GBXGQJWVLWOYHFLVTKWV5FGHA3LNYY2JQKM7OAJAUEQFU6LPCSEFVXON',
+  })
   walletAddress: string;
 
   @ApiProperty({
-    description:
-      'Position in payout queue (0-indexed). Null until group activation for RANDOM/ADMIN_DEFINED strategies',
-    nullable: true,
+    description: 'Order in which member receives payout (1-based)',
+    example: 1,
+    minimum: 1,
   })
-  payoutOrder: number | null;
+  payoutOrder: number;
 
-  @ApiProperty({ description: 'Whether member has received their payout' })
+  @ApiProperty({
+    description: 'Whether the member has received their payout',
+    example: false,
+  })
   hasReceivedPayout: boolean;
 
-  @ApiProperty({ description: 'Whether member has paid for current round' })
+  @ApiProperty({
+    description: 'Whether the member has paid for the current round',
+    example: true,
+  })
   hasPaidCurrentRound: boolean;
 
   @ApiProperty({
+    description: 'Membership status',
     enum: MembershipStatus,
-    description: 'Current status of the membership',
+    example: MembershipStatus.ACTIVE,
   })
+  transactionHash?: string | null;
   status: MembershipStatus;
 
-  @ApiProperty({ description: 'ISO 8601 timestamp of creation' })
+  @ApiProperty({
+    description: 'Membership creation timestamp (ISO 8601)',
+    example: '2024-01-01T00:00:00.000Z',
+  })
   createdAt: string;
 
-  @ApiProperty({ description: 'ISO 8601 timestamp of last update' })
+  @ApiProperty({
+    description: 'Last update timestamp (ISO 8601)',
+    example: '2024-01-01T00:00:00.000Z',
+  })
   updatedAt: string;
 }
 
