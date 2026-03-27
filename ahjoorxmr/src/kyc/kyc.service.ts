@@ -11,10 +11,7 @@ import { ConfigService } from '@nestjs/config';
 import * as path from 'path';
 import * as crypto from 'crypto';
 import * as fs from 'fs/promises';
-import {
-  S3Client,
-  PutObjectCommand,
-} from '@aws-sdk/client-s3';
+import { S3Client, PutObjectCommand } from '@aws-sdk/client-s3';
 import { KycDocument } from './entities/kyc-document.entity';
 import { KycStatus } from './entities/kyc-status.enum';
 import { User } from '../users/entities/user.entity';
@@ -44,15 +41,23 @@ export class KycService {
   ) {
     this.bucket = this.configService.get<string>('AWS_S3_BUCKET') ?? null;
     this.useS3 = !!this.bucket;
-    this.uploadDir = this.configService.get<string>('LOCAL_STORAGE_PATH', './uploads');
-    this.baseUrl = this.configService.get<string>('BASE_URL', 'http://localhost:3000');
+    this.uploadDir = this.configService.get<string>(
+      'LOCAL_STORAGE_PATH',
+      './uploads',
+    );
+    this.baseUrl = this.configService.get<string>(
+      'BASE_URL',
+      'http://localhost:3000',
+    );
 
     if (this.useS3) {
       this.s3Client = new S3Client({
         region: this.configService.get<string>('AWS_REGION'),
         credentials: {
           accessKeyId: this.configService.get<string>('AWS_ACCESS_KEY_ID'),
-          secretAccessKey: this.configService.get<string>('AWS_SECRET_ACCESS_KEY'),
+          secretAccessKey: this.configService.get<string>(
+            'AWS_SECRET_ACCESS_KEY',
+          ),
         },
       });
     }
@@ -97,12 +102,17 @@ export class KycService {
       body: 'Your KYC document has been submitted and is pending review.',
     });
 
-    this.logger.log(`KYC document uploaded for user ${userId}: ${storageKey}`, 'KycService');
+    this.logger.log(
+      `KYC document uploaded for user ${userId}: ${storageKey}`,
+      'KycService',
+    );
 
     return saved;
   }
 
-  async getLatestDocument(userId: string): Promise<KycDocument & { kycStatus: KycStatus }> {
+  async getLatestDocument(
+    userId: string,
+  ): Promise<KycDocument & { kycStatus: KycStatus }> {
     const user = await this.userRepository.findOne({ where: { id: userId } });
     if (!user) {
       throw new NotFoundException('User not found');
@@ -138,7 +148,10 @@ export class KycService {
     }
   }
 
-  private async uploadToS3(key: string, file: Express.Multer.File): Promise<string> {
+  private async uploadToS3(
+    key: string,
+    file: Express.Multer.File,
+  ): Promise<string> {
     await this.s3Client.send(
       new PutObjectCommand({
         Bucket: this.bucket,
@@ -150,7 +163,10 @@ export class KycService {
     return `https://${this.bucket}.s3.amazonaws.com/${key}`;
   }
 
-  private async uploadToLocal(key: string, file: Express.Multer.File): Promise<string> {
+  private async uploadToLocal(
+    key: string,
+    file: Express.Multer.File,
+  ): Promise<string> {
     const filePath = path.join(this.uploadDir, key);
     await fs.mkdir(path.dirname(filePath), { recursive: true });
     await fs.writeFile(filePath, file.buffer);

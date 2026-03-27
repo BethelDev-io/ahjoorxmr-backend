@@ -4,21 +4,21 @@ import {
   Column,
   CreateDateColumn,
   Index,
-} from "typeorm";
+} from 'typeorm';
 
-@Entity("audit_logs")
-@Index(["resource", "resourceId"])
-@Index(["action", "createdAt"])
-@Index(["userId", "createdAt"])
+@Entity('audit_logs')
+@Index(['resource', 'resourceId'])
+@Index(['action', 'createdAt'])
+@Index(['userId', 'createdAt'])
 export class AuditLog {
-  @PrimaryGeneratedColumn("uuid")
+  @PrimaryGeneratedColumn('uuid')
   id: string;
 
   @Column()
   userId: string;
 
   @Column()
-  action: "CREATE" | "UPDATE" | "DELETE" | "READ";
+  action: 'CREATE' | 'UPDATE' | 'DELETE' | 'READ';
 
   @Column()
   resource: string; // e.g., 'GROUP', 'USER', 'PERMISSION'
@@ -26,10 +26,10 @@ export class AuditLog {
   @Column()
   resourceId: string;
 
-  @Column("jsonb", { nullable: true })
+  @Column('jsonb', { nullable: true })
   previousValue: Record<string, any> | null;
 
-  @Column("jsonb", { nullable: true })
+  @Column('jsonb', { nullable: true })
   newValue: Record<string, any> | null;
 
   @Column({ nullable: true })

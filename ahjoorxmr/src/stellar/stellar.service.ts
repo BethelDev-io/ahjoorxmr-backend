@@ -92,7 +92,9 @@ export class StellarService {
         const contract = new (StellarSdk as any).Contract(contractAddress);
         operation = contract.call(
           'disburse_payout',
-          (StellarSdk as any).nativeToScVal(recipientWallet, { type: 'address' }),
+          (StellarSdk as any).nativeToScVal(recipientWallet, {
+            type: 'address',
+          }),
           (StellarSdk as any).nativeToScVal(BigInt(amount), { type: 'i128' }),
         );
       } catch {
@@ -241,6 +243,47 @@ export class StellarService {
         'Unable to verify contribution transaction',
         error,
       );
+    }
+  }
+
+  async getTransactionStatus(
+    txHash: string,
+  ): Promise<'PENDING' | 'CONFIRMED' | 'FAILED'> {
+    if (!txHash) {
+      throw new BadRequestException('Transaction hash is required');
+    }
+
+    this.validateConfiguration();
+
+    try {
+      const transaction = await this.server.getTransaction(txHash);
+      if (!transaction) {
+        return 'PENDING';
+      }
+
+      const status = String(
+        transaction.status ?? transaction.txStatus ?? transaction.state ?? '',
+      ).toLowerCase();
+
+      if (
+        status.includes('success') ||
+        status.includes('confirmed') ||
+        status.includes('completed')
+      ) {
+        return 'CONFIRMED';
+      }
+
+      if (
+        status.includes('failed') ||
+        status.includes('error') ||
+        status.includes('reverted')
+      ) {
+        return 'FAILED';
+      }
+
+      return 'PENDING';
+    } catch (error) {
+      throw this.mapRpcError('Unable to fetch transaction status', error);
     }
   }
 

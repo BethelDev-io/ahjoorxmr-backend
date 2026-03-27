@@ -45,7 +45,9 @@ describe('RolesGuard', () => {
     const context = createMockExecutionContext({ id: '1', role: 'user' });
 
     expect(() => guard.canActivate(context)).toThrow(ForbiddenException);
-    expect(() => guard.canActivate(context)).toThrow('Insufficient permissions');
+    expect(() => guard.canActivate(context)).toThrow(
+      'Insufficient permissions',
+    );
   });
 
   it('should deny access when user has no role', () => {
@@ -64,14 +66,18 @@ describe('RolesGuard', () => {
   });
 
   it('should allow access when user has one of multiple required roles', () => {
-    jest.spyOn(reflector, 'getAllAndOverride').mockReturnValue(['admin', 'moderator']);
+    jest
+      .spyOn(reflector, 'getAllAndOverride')
+      .mockReturnValue(['admin', 'moderator']);
     const context = createMockExecutionContext({ id: '1', role: 'moderator' });
 
     expect(guard.canActivate(context)).toBe(true);
   });
 
   it('should use reflector to get roles from handler and class', () => {
-    const getAllAndOverrideSpy = jest.spyOn(reflector, 'getAllAndOverride').mockReturnValue(['admin']);
+    const getAllAndOverrideSpy = jest
+      .spyOn(reflector, 'getAllAndOverride')
+      .mockReturnValue(['admin']);
     const context = createMockExecutionContext({ id: '1', role: 'admin' });
 
     guard.canActivate(context);

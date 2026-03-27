@@ -20,7 +20,9 @@ describe('NotificationsService - Idempotency Integration', () => {
       create: jest.fn((dto) => ({ id: 'mock-id', ...dto })),
       save: jest.fn((entities) => {
         if (Array.isArray(entities)) {
-          return Promise.resolve(entities.map((e, i) => ({ id: `notif-${i}`, ...e })));
+          return Promise.resolve(
+            entities.map((e, i) => ({ id: `notif-${i}`, ...e })),
+          );
         }
         return Promise.resolve({ id: 'notif-single', ...entities });
       }),
@@ -47,7 +49,9 @@ describe('NotificationsService - Idempotency Integration', () => {
     }).compile();
 
     service = module.get<NotificationsService>(NotificationsService);
-    repository = module.get<Repository<Notification>>(getRepositoryToken(Notification));
+    repository = module.get<Repository<Notification>>(
+      getRepositoryToken(Notification),
+    );
 
     jest.clearAllMocks();
   });
@@ -81,10 +85,12 @@ describe('NotificationsService - Idempotency Integration', () => {
         select: jest.fn().mockReturnThis(),
         where: jest.fn().mockReturnThis(),
         andWhere: jest.fn().mockReturnThis(),
-        getRawMany: jest.fn().mockResolvedValue([
-          { n_idempotencyKey: 'group-123-2-user-1-ROUND_OPENED' },
-          { n_idempotencyKey: 'group-123-2-user-2-ROUND_OPENED' },
-        ]),
+        getRawMany: jest
+          .fn()
+          .mockResolvedValue([
+            { n_idempotencyKey: 'group-123-2-user-1-ROUND_OPENED' },
+            { n_idempotencyKey: 'group-123-2-user-2-ROUND_OPENED' },
+          ]),
       });
 
       // Second execution (retry)
@@ -123,9 +129,11 @@ describe('NotificationsService - Idempotency Integration', () => {
         select: jest.fn().mockReturnThis(),
         where: jest.fn().mockReturnThis(),
         andWhere: jest.fn().mockReturnThis(),
-        getRawMany: jest.fn().mockResolvedValue([
-          { n_idempotencyKey: 'group-123-3-user-1-ROUND_OPENED' },
-        ]),
+        getRawMany: jest
+          .fn()
+          .mockResolvedValue([
+            { n_idempotencyKey: 'group-123-3-user-1-ROUND_OPENED' },
+          ]),
       });
 
       const result = await service.notifyBatch(notifications);
@@ -145,13 +153,16 @@ describe('NotificationsService - Idempotency Integration', () => {
 
   describe('Large Group Scenario', () => {
     it('should efficiently handle batch insert for 100 members', async () => {
-      const notifications: CreateNotificationDto[] = Array.from({ length: 100 }, (_, i) => ({
-        userId: `user-${i}`,
-        type: NotificationType.ROUND_OPENED,
-        title: 'Round 1',
-        body: 'Round started',
-        idempotencyKey: `group-large-1-user-${i}-ROUND_OPENED`,
-      }));
+      const notifications: CreateNotificationDto[] = Array.from(
+        { length: 100 },
+        (_, i) => ({
+          userId: `user-${i}`,
+          type: NotificationType.ROUND_OPENED,
+          title: 'Round 1',
+          body: 'Round started',
+          idempotencyKey: `group-large-1-user-${i}-ROUND_OPENED`,
+        }),
+      );
 
       const result = await service.notifyBatch(notifications);
 

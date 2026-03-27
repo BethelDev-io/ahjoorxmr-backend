@@ -30,6 +30,12 @@ import { StellarModule } from '../stellar/stellar.module';
   ],
   controllers: [AuthController],
   providers: [AuthService, JwtStrategy, TwoFactorService],
-  exports: [AuthService, JwtStrategy, PassportModule, JwtModule, TwoFactorService],
+  exports: [
+    AuthService,
+    JwtStrategy,
+    PassportModule,
+    JwtModule,
+    TwoFactorService,
+  ],
 })
 export class AuthModule {}

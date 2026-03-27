@@ -1,7 +1,7 @@
-import { Logger } from "@nestjs/common";
-import { Worker, Job, UnrecoverableError } from "bullmq";
-import { MailService } from "@/mail/services/mail.service";
-import { EmailJob, NotificationType } from "@/common/types/email.types";
+import { Logger } from '@nestjs/common';
+import { Worker, Job, UnrecoverableError } from 'bullmq';
+import { MailService } from '@/mail/services/mail.service';
+import { EmailJob, NotificationType } from '@/common/types/email.types';
 
 export class EmailProcessor {
   private readonly logger = new Logger(EmailProcessor.name);
@@ -9,15 +9,15 @@ export class EmailProcessor {
 
   constructor(
     private readonly mailService: MailService,
-    queueName: string = "emails",
+    queueName: string = 'emails',
   ) {
     this.initializeWorker(queueName);
   }
 
   private initializeWorker(queueName: string): void {
     const redisConfig = {
-      host: process.env.REDIS_HOST || "localhost",
-      port: parseInt(process.env.REDIS_PORT || "6379"),
+      host: process.env.REDIS_HOST || 'localhost',
+      port: parseInt(process.env.REDIS_PORT || '6379'),
     };
 
     this.worker = new Worker<EmailJob>(
@@ -29,11 +29,11 @@ export class EmailProcessor {
       },
     );
 
-    this.worker.on("completed", (job) => {
+    this.worker.on('completed', (job) => {
       this.logger.log(`Email job ${job.id} completed successfully`);
     });
 
-    this.worker.on("failed", (job, error) => {
+    this.worker.on('failed', (job, error) => {
       this.logger.error(`Email job ${job?.id} failed: ${error.message}`);
     });
 
@@ -56,7 +56,7 @@ export class EmailProcessor {
 
       // Validate metadata exists and has recipient email
       if (!metadata || !metadata.recipientEmail) {
-        throw new UnrecoverableError("Missing required metadata fields");
+        throw new UnrecoverableError('Missing required metadata fields');
       }
 
       // Send email
@@ -86,6 +86,6 @@ export class EmailProcessor {
    */
   async close(): Promise<void> {
     await this.worker.close();
-    this.logger.log("Email processor closed");
+    this.logger.log('Email processor closed');
   }
 }

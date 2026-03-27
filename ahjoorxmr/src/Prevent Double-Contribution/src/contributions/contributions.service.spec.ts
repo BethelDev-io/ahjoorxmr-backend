@@ -1,21 +1,21 @@
-import { Test, TestingModule } from "@nestjs/testing";
-import { getRepositoryToken } from "@nestjs/typeorm";
-import { Repository } from "typeorm";
-import { ConflictException } from "@nestjs/common";
-import { ContributionsService } from "./contributions.service";
-import { Contribution } from "./contribution.entity";
-import { CreateContributionDto } from "./dto/create-contribution.dto";
+import { Test, TestingModule } from '@nestjs/testing';
+import { getRepositoryToken } from '@nestjs/typeorm';
+import { Repository } from 'typeorm';
+import { ConflictException } from '@nestjs/common';
+import { ContributionsService } from './contributions.service';
+import { Contribution } from './contribution.entity';
+import { CreateContributionDto } from './dto/create-contribution.dto';
 
-describe("ContributionsService", () => {
+describe('ContributionsService', () => {
   let service: ContributionsService;
   let repository: Repository<Contribution>;
 
   const mockContribution: Contribution = {
-    id: "1",
-    groupId: "group-1",
-    userId: "user-1",
+    id: '1',
+    groupId: 'group-1',
+    userId: 'user-1',
     roundNumber: 1,
-    transactionHash: "hash-1",
+    transactionHash: 'hash-1',
     amount: 100,
     createdAt: new Date(),
     updatedAt: new Date(),
@@ -40,22 +40,20 @@ describe("ContributionsService", () => {
     }).compile();
 
     service = module.get<ContributionsService>(ContributionsService);
-    repository = module.get<Repository<Contribution>>(
-      getRepositoryToken(Contribution),
-    );
+    repository = module.get<Repository<Contribution>>(getRepositoryToken(Contribution));
   });
 
   afterEach(() => {
     jest.clearAllMocks();
   });
 
-  describe("createContribution", () => {
-    it("should create a contribution when none exists for the same round", async () => {
+  describe('createContribution', () => {
+    it('should create a contribution when none exists for the same round', async () => {
       const createContributionDto: CreateContributionDto = {
-        groupId: "group-1",
-        userId: "user-1",
+        groupId: 'group-1',
+        userId: 'user-1',
         roundNumber: 1,
-        transactionHash: "hash-1",
+        transactionHash: 'hash-1',
         amount: 100,
       };
 
@@ -68,8 +66,8 @@ describe("ContributionsService", () => {
       expect(result).toEqual(mockContribution);
       expect(mockRepository.findOne).toHaveBeenCalledWith({
         where: {
-          groupId: "group-1",
-          userId: "user-1",
+          groupId: 'group-1',
+          userId: 'user-1',
           roundNumber: 1,
         },
       });
@@ -77,29 +75,25 @@ describe("ContributionsService", () => {
       expect(mockRepository.save).toHaveBeenCalledWith(mockContribution);
     });
 
-    it("should throw ConflictException when contribution already exists for the same round", async () => {
+    it('should throw ConflictException when contribution already exists for the same round', async () => {
       const createContributionDto: CreateContributionDto = {
-        groupId: "group-1",
-        userId: "user-1",
+        groupId: 'group-1',
+        userId: 'user-1',
         roundNumber: 1,
-        transactionHash: "hash-2",
+        transactionHash: 'hash-2',
         amount: 200,
       };
 
       mockRepository.findOne.mockResolvedValue(mockContribution);
 
-      await expect(
-        service.createContribution(createContributionDto),
-      ).rejects.toThrow(
-        new ConflictException(
-          "You have already contributed for round 1 in this group",
-        ),
+      await expect(service.createContribution(createContributionDto)).rejects.toThrow(
+        new ConflictException('You have already contributed for round 1 in this group'),
       );
 
       expect(mockRepository.findOne).toHaveBeenCalledWith({
         where: {
-          groupId: "group-1",
-          userId: "user-1",
+          groupId: 'group-1',
+          userId: 'user-1',
           roundNumber: 1,
         },
       });
@@ -107,19 +101,19 @@ describe("ContributionsService", () => {
       expect(mockRepository.save).not.toHaveBeenCalled();
     });
 
-    it("should allow contribution from a different round for the same member", async () => {
+    it('should allow contribution from a different round for the same member', async () => {
       const createContributionDto: CreateContributionDto = {
-        groupId: "group-1",
-        userId: "user-1",
+        groupId: 'group-1',
+        userId: 'user-1',
         roundNumber: 2,
-        transactionHash: "hash-2",
+        transactionHash: 'hash-2',
         amount: 150,
       };
 
       const mockContribution2 = {
         ...mockContribution,
         roundNumber: 2,
-        transactionHash: "hash-2",
+        transactionHash: 'hash-2',
         amount: 150,
       };
 
@@ -132,8 +126,8 @@ describe("ContributionsService", () => {
       expect(result).toEqual(mockContribution2);
       expect(mockRepository.findOne).toHaveBeenCalledWith({
         where: {
-          groupId: "group-1",
-          userId: "user-1",
+          groupId: 'group-1',
+          userId: 'user-1',
           roundNumber: 2,
         },
       });
@@ -141,8 +135,8 @@ describe("ContributionsService", () => {
     });
   });
 
-  describe("findAll", () => {
-    it("should return all contributions", async () => {
+  describe('findAll', () => {
+    it('should return all contributions', async () => {
       mockRepository.find.mockResolvedValue([mockContribution]);
 
       const result = await service.findAll();
@@ -152,45 +146,45 @@ describe("ContributionsService", () => {
     });
   });
 
-  describe("findById", () => {
-    it("should return a contribution by id", async () => {
+  describe('findById', () => {
+    it('should return a contribution by id', async () => {
       mockRepository.findOne.mockResolvedValue(mockContribution);
 
-      const result = await service.findById("1");
+      const result = await service.findById('1');
 
       expect(result).toEqual(mockContribution);
       expect(mockRepository.findOne).toHaveBeenCalledWith({
-        where: { id: "1" },
+        where: { id: '1' },
       });
     });
   });
 
-  describe("findByGroupAndUser", () => {
-    it("should return contributions for a specific group and user", async () => {
+  describe('findByGroupAndUser', () => {
+    it('should return contributions for a specific group and user', async () => {
       mockRepository.find.mockResolvedValue([mockContribution]);
 
-      const result = await service.findByGroupAndUser("group-1", "user-1");
+      const result = await service.findByGroupAndUser('group-1', 'user-1');
 
       expect(result).toEqual([mockContribution]);
       expect(mockRepository.find).toHaveBeenCalledWith({
         where: {
-          groupId: "group-1",
-          userId: "user-1",
+          groupId: 'group-1',
+          userId: 'user-1',
         },
       });
     });
   });
 
-  describe("findByRound", () => {
-    it("should return contributions for a specific group and round", async () => {
+  describe('findByRound', () => {
+    it('should return contributions for a specific group and round', async () => {
       mockRepository.find.mockResolvedValue([mockContribution]);
 
-      const result = await service.findByRound("group-1", 1);
+      const result = await service.findByRound('group-1', 1);
 
       expect(result).toEqual([mockContribution]);
       expect(mockRepository.find).toHaveBeenCalledWith({
         where: {
-          groupId: "group-1",
+          groupId: 'group-1',
           roundNumber: 1,
         },
       });

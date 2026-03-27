@@ -446,7 +446,9 @@ export class MembershipsService {
     }
 
     if (group.status !== GroupStatus.ACTIVE) {
-      throw new BadRequestException('Group must be ACTIVE to query current recipient');
+      throw new BadRequestException(
+        'Group must be ACTIVE to query current recipient',
+      );
     }
 
     const expectedPayoutOrder = group.currentRound - 1;

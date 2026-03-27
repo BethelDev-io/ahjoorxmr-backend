@@ -1,10 +1,10 @@
-import { Injectable, Logger } from "@nestjs/common";
-import { Queue, QueueEvents } from "bullmq";
+import { Injectable, Logger } from '@nestjs/common';
+import { Queue, QueueEvents } from 'bullmq';
 import {
   EmailJob,
   NotificationType,
   EmailMetadata,
-} from "@/common/types/email.types";
+} from '@/common/types/email.types';
 
 @Injectable()
 export class EmailQueueService {
@@ -18,19 +18,19 @@ export class EmailQueueService {
 
   private initializeQueue(): void {
     const redisConfig = {
-      host: process.env.REDIS_HOST || "localhost",
-      port: parseInt(process.env.REDIS_PORT || "6379"),
+      host: process.env.REDIS_HOST || 'localhost',
+      port: parseInt(process.env.REDIS_PORT || '6379'),
     };
 
-    this.queue = new Queue<EmailJob>("emails", {
+    this.queue = new Queue<EmailJob>('emails', {
       connection: redisConfig,
     });
 
-    this.queueEvents = new QueueEvents("emails", {
+    this.queueEvents = new QueueEvents('emails', {
       connection: redisConfig,
     });
 
-    this.logger.log("Email queue initialized");
+    this.logger.log('Email queue initialized');
   }
 
   /**
@@ -52,7 +52,7 @@ export class EmailQueueService {
         {
           attempts: options?.attempts || 3,
           backoff: {
-            type: "exponential",
+            type: 'exponential',
             delay: 2000,
           },
           delay: options?.delay || 0,
@@ -118,6 +118,6 @@ export class EmailQueueService {
   async close(): Promise<void> {
     await this.queueEvents.close();
     await this.queue.close();
-    this.logger.log("Email queue closed");
+    this.logger.log('Email queue closed');
   }
 }

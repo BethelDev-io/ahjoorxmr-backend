@@ -1,6 +1,15 @@
 import 'reflect-metadata';
 import { Test, TestingModule } from '@nestjs/testing';
-import { INestApplication, HttpStatus, Controller, Post, UseGuards, Request, HttpCode, Injectable } from '@nestjs/common';
+import {
+  INestApplication,
+  HttpStatus,
+  Controller,
+  Post,
+  UseGuards,
+  Request,
+  HttpCode,
+  Injectable,
+} from '@nestjs/common';
 import request from 'supertest';
 import { ThrottlerModule, Throttle } from '@nestjs/throttler';
 import { Reflector } from '@nestjs/core';
@@ -54,7 +63,7 @@ describe('Wallet Throttling (Integration with src Logic)', () => {
               name: 'default',
               ttl: 60000,
               limit: 100, // Large default, overridden by @Throttle
-            }
+            },
           ],
         }),
       ],
@@ -66,7 +75,9 @@ describe('Wallet Throttling (Integration with src Logic)', () => {
           useValue: {
             isIpTrusted: jest.fn().mockResolvedValue(false),
             isIpBlocked: jest.fn().mockResolvedValue({ blocked: false }),
-            incrementViolations: jest.fn().mockResolvedValue({ count: 0, shouldBlock: false }),
+            incrementViolations: jest
+              .fn()
+              .mockResolvedValue({ count: 0, shouldBlock: false }),
           },
         },
         {
@@ -92,10 +103,10 @@ describe('Wallet Throttling (Integration with src Logic)', () => {
 
   it('should allow up to 5 requests for wallet1 on contribution', async () => {
     for (let i = 0; i < 5; i++) {
-        await request(app.getHttpServer())
-            .post('/test/contribution')
-            .set('Authorization', `Bearer ${wallet1}`)
-            .expect(HttpStatus.OK);
+      await request(app.getHttpServer())
+        .post('/test/contribution')
+        .set('Authorization', `Bearer ${wallet1}`)
+        .expect(HttpStatus.OK);
     }
   });
 
@@ -104,7 +115,7 @@ describe('Wallet Throttling (Integration with src Logic)', () => {
       .post('/test/contribution')
       .set('Authorization', `Bearer ${wallet1}`)
       .expect(HttpStatus.TOO_MANY_REQUESTS);
-    
+
     expect(res.headers).toHaveProperty('retry-after');
   });
 
@@ -117,10 +128,10 @@ describe('Wallet Throttling (Integration with src Logic)', () => {
 
   it('should throttle wallet2 after 3 requests on activation', async () => {
     for (let i = 0; i < 3; i++) {
-        await request(app.getHttpServer())
-            .post('/test/activation')
-            .set('Authorization', `Bearer ${wallet2}`)
-            .expect(HttpStatus.OK);
+      await request(app.getHttpServer())
+        .post('/test/activation')
+        .set('Authorization', `Bearer ${wallet2}`)
+        .expect(HttpStatus.OK);
     }
 
     await request(app.getHttpServer())

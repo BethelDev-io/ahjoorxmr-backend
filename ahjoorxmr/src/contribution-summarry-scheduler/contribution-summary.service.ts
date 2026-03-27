@@ -18,8 +18,8 @@ export interface ReminderResult {
   roundNumber: number;
   totalMembers: number;
   remindedCount: number;
-  skippedCount: number;   // already paid
-  dedupedCount: number;   // idempotency hit
+  skippedCount: number; // already paid
+  dedupedCount: number; // idempotency hit
 }
 
 export interface SchedulerRunResult {

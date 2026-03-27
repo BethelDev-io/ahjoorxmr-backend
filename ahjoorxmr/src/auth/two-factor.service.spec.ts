@@ -32,7 +32,9 @@ function makeUser(overrides: Partial<User> = {}): User {
 
 describe('TwoFactorService', () => {
   let service: TwoFactorService;
-  let usersService: jest.Mocked<Pick<UsersService, 'findById2FA' | 'update2FA'>>;
+  let usersService: jest.Mocked<
+    Pick<UsersService, 'findById2FA' | 'update2FA'>
+  >;
   let jwtService: jest.Mocked<Pick<JwtService, 'sign' | 'verify'>>;
   let configService: jest.Mocked<Pick<ConfigService, 'get'>>;
 
@@ -92,8 +94,8 @@ describe('TwoFactorService', () => {
       usersService.findById2FA.mockResolvedValue(makeUser());
 
       const result = await service.enable('user-uuid');
-      const storedSecret = (usersService.update2FA as jest.Mock).mock.calls[0][1]
-        .twoFactorSecret as string;
+      const storedSecret = (usersService.update2FA as jest.Mock).mock
+        .calls[0][1].twoFactorSecret as string;
 
       expect(storedSecret).toBe(result.secret);
     });
@@ -103,7 +105,9 @@ describe('TwoFactorService', () => {
 
   describe('verify()', () => {
     it('throws BadRequestException when no secret is stored', async () => {
-      usersService.findById2FA.mockResolvedValue(makeUser({ twoFactorSecret: null }));
+      usersService.findById2FA.mockResolvedValue(
+        makeUser({ twoFactorSecret: null }),
+      );
 
       await expect(service.verify('user-uuid', '123456')).rejects.toThrow(
         BadRequestException,
@@ -141,7 +145,9 @@ describe('TwoFactorService', () => {
 
   describe('disable()', () => {
     it('throws BadRequestException when 2FA is not enabled', async () => {
-      usersService.findById2FA.mockResolvedValue(makeUser({ twoFactorEnabled: false }));
+      usersService.findById2FA.mockResolvedValue(
+        makeUser({ twoFactorEnabled: false }),
+      );
 
       await expect(
         service.disable('user-uuid', 'correct-password', '123456'),
@@ -209,7 +215,9 @@ describe('TwoFactorService', () => {
     });
 
     it('throws UnauthorizedException on invalid pre-auth token', async () => {
-      jwtService.verify.mockImplementation(() => { throw new Error('jwt expired'); });
+      jwtService.verify.mockImplementation(() => {
+        throw new Error('jwt expired');
+      });
 
       await expect(
         service.completeTwoFactorLogin('bad-token', '123456'),
@@ -217,7 +225,9 @@ describe('TwoFactorService', () => {
     });
 
     it('throws ForbiddenException when 2FA is not enabled on the account', async () => {
-      usersService.findById2FA.mockResolvedValue(makeUser({ twoFactorEnabled: false }));
+      usersService.findById2FA.mockResolvedValue(
+        makeUser({ twoFactorEnabled: false }),
+      );
 
       await expect(
         service.completeTwoFactorLogin('pre-auth-token', '123456'),
@@ -230,7 +240,10 @@ describe('TwoFactorService', () => {
       );
       jest.spyOn(service, 'verifyToken').mockReturnValue(true);
 
-      const userId = await service.completeTwoFactorLogin('pre-auth-token', '123456');
+      const userId = await service.completeTwoFactorLogin(
+        'pre-auth-token',
+        '123456',
+      );
 
       expect(userId).toBe('user-uuid');
       expect(usersService.update2FA).not.toHaveBeenCalled();
@@ -249,7 +262,10 @@ describe('TwoFactorService', () => {
       );
       jest.spyOn(service, 'verifyToken').mockReturnValue(false);
 
-      const userId = await service.completeTwoFactorLogin('pre-auth-token', plainCode);
+      const userId = await service.completeTwoFactorLogin(
+        'pre-auth-token',
+        plainCode,
+      );
 
       expect(userId).toBe('user-uuid');
       expect(usersService.update2FA).toHaveBeenCalledWith('user-uuid', {
@@ -275,7 +291,11 @@ describe('TwoFactorService', () => {
 
     it('throws UnauthorizedException when both TOTP and backup code are invalid', async () => {
       usersService.findById2FA.mockResolvedValue(
-        makeUser({ twoFactorEnabled: true, twoFactorSecret: 'SECRET', backupCodes: [] }),
+        makeUser({
+          twoFactorEnabled: true,
+          twoFactorSecret: 'SECRET',
+          backupCodes: [],
+        }),
       );
       jest.spyOn(service, 'verifyToken').mockReturnValue(false);
 
@@ -289,7 +309,11 @@ describe('TwoFactorService', () => {
 
   describe('verifyPreAuthToken()', () => {
     it('throws when twoFactorPending flag is absent', () => {
-      jwtService.verify.mockReturnValue({ sub: 'u1', email: 'e', role: 'user' });
+      jwtService.verify.mockReturnValue({
+        sub: 'u1',
+        email: 'e',
+        role: 'user',
+      });
 
       expect(() => service.verifyPreAuthToken('some-token')).toThrow(
         UnauthorizedException,
@@ -297,7 +321,9 @@ describe('TwoFactorService', () => {
     });
 
     it('throws on expired token', () => {
-      jwtService.verify.mockImplementation(() => { throw new Error('jwt expired'); });
+      jwtService.verify.mockImplementation(() => {
+        throw new Error('jwt expired');
+      });
 
       expect(() => service.verifyPreAuthToken('expired-token')).toThrow(
         UnauthorizedException,
@@ -313,7 +339,9 @@ describe('AuthService.login — 2FA gate', () => {
   let usersService: jest.Mocked<
     Pick<UsersService, 'findByEmail' | 'findById' | 'updateRefreshToken'>
   >;
-  let twoFactorService: jest.Mocked<Pick<TwoFactorService, 'issuePreAuthToken'>>;
+  let twoFactorService: jest.Mocked<
+    Pick<TwoFactorService, 'issuePreAuthToken'>
+  >;
   let jwtService: jest.Mocked<Pick<JwtService, 'signAsync'>>;
   let configService: jest.Mocked<Pick<ConfigService, 'get'>>;
 

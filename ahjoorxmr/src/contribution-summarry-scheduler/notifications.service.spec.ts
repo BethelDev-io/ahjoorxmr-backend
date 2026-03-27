@@ -128,7 +128,9 @@ describe('NotificationsService', () => {
       );
       repo.save.mockRejectedValue(otherError);
 
-      await expect(service.notify(basePayload)).rejects.toThrow(QueryFailedError);
+      await expect(service.notify(basePayload)).rejects.toThrow(
+        QueryFailedError,
+      );
     });
   });
 

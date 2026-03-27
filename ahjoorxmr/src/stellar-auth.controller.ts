@@ -44,7 +44,9 @@ export class StellarAuthController {
   })
   @ApiOkResponse({
     description: 'Challenge string to be signed with the Stellar private key',
-    schema: { example: { challenge: 'cheese-wallet:auth:G...:1712345678:abc' } },
+    schema: {
+      example: { challenge: 'cheese-wallet:auth:G...:1712345678:abc' },
+    },
   })
   getChallenge(@Body() dto: GetChallengeDto): { challenge: string } {
     return this.authService.generateChallenge(dto.walletAddress);

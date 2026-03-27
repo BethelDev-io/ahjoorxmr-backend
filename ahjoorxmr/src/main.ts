@@ -67,11 +67,11 @@ async function bootstrap() {
       .setTitle('Ahjoor Backend API v1 (Deprecated)')
       .setDescription(
         'Version 1 of the Ahjoor Backend API (DEPRECATED). ' +
-        'This API provides endpoints for user authentication, ROSCA group management, ' +
-        'membership tracking, contribution processing, and more. ' +
-        'Please migrate to v2 for new integrations. ' +
-        'Breaking changes in v2: GET /api/v2/groups/:id no longer includes members; ' +
-        'use GET /api/v2/groups/:id/members instead.',
+          'This API provides endpoints for user authentication, ROSCA group management, ' +
+          'membership tracking, contribution processing, and more. ' +
+          'Please migrate to v2 for new integrations. ' +
+          'Breaking changes in v2: GET /api/v2/groups/:id no longer includes members; ' +
+          'use GET /api/v2/groups/:id/members instead.',
       )
       .setVersion('1.0.0')
       .setContact('Ahjoor Team', 'https://ahjoor.com', 'support@ahjoor.com')
@@ -124,10 +124,10 @@ async function bootstrap() {
       .setTitle('Ahjoor Backend API v2')
       .setDescription(
         'Version 2 of the Ahjoor Backend API (Current). ' +
-        'This API provides endpoints for user authentication, ROSCA group management, ' +
-        'membership tracking, contribution processing, and more. ' +
-        'Breaking changes from v1: GET /api/v2/groups/:id no longer includes members; ' +
-        'use GET /api/v2/groups/:id/members for member data.',
+          'This API provides endpoints for user authentication, ROSCA group management, ' +
+          'membership tracking, contribution processing, and more. ' +
+          'Breaking changes from v1: GET /api/v2/groups/:id no longer includes members; ' +
+          'use GET /api/v2/groups/:id/members for member data.',
       )
       .setVersion('2.0.0')
       .setContact('Ahjoor Team', 'https://ahjoor.com', 'support@ahjoor.com')
@@ -189,9 +189,9 @@ async function bootstrap() {
 
     console.log(
       `Swagger documentation available at:\n` +
-      `  - v1 (deprecated): http://localhost:${process.env.PORT ?? 3000}/api/docs/v1\n` +
-      `  - v2 (current): http://localhost:${process.env.PORT ?? 3000}/api/docs/v2\n` +
-      `  - default: http://localhost:${process.env.PORT ?? 3000}/api/docs`,
+        `  - v1 (deprecated): http://localhost:${process.env.PORT ?? 3000}/api/docs/v1\n` +
+        `  - v2 (current): http://localhost:${process.env.PORT ?? 3000}/api/docs/v2\n` +
+        `  - default: http://localhost:${process.env.PORT ?? 3000}/api/docs`,
     );
   }
 

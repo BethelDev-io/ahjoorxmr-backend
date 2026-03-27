@@ -37,7 +37,9 @@ export class DeadLetterService {
   /**
    * Record a failed job in the dead letter queue and trigger alerting
    */
-  async recordDeadLetter(payload: DeadLetterPayload): Promise<DeadLetterRecord> {
+  async recordDeadLetter(
+    payload: DeadLetterPayload,
+  ): Promise<DeadLetterRecord> {
     try {
       // Persist the dead letter record
       const record = this.deadLetterRepository.create({
@@ -147,8 +149,10 @@ export class DeadLetterService {
     const timeWindow = 60 * 60 * 1000; // 1 hour window for consecutive failures
 
     for (let i = 0; i < recentRecords.length - 1; i++) {
-      const timeDiff = recentRecords[i].recordedAt.getTime() - recentRecords[i + 1].recordedAt.getTime();
-      
+      const timeDiff =
+        recentRecords[i].recordedAt.getTime() -
+        recentRecords[i + 1].recordedAt.getTime();
+
       // If failures are within time window and consecutive, increment count
       if (timeDiff < timeWindow) {
         consecutiveCount++;
@@ -167,7 +171,10 @@ export class DeadLetterService {
   /**
    * Pause the queue for a specific group
    */
-  private async pauseQueue(groupId: string, failureCount: number): Promise<void> {
+  private async pauseQueue(
+    groupId: string,
+    failureCount: number,
+  ): Promise<void> {
     try {
       this.logger.error(
         `Circuit breaker triggered for groupId=${groupId}. Consecutive failures: ${failureCount}. Queue paused.`,
@@ -289,7 +296,7 @@ export class DeadLetterService {
   async resolveDeadLetter(recordId: string, notes?: string): Promise<void> {
     await this.deadLetterRepository.update(
       { id: recordId },
-      { 
+      {
         status: 'RESOLVED',
         resolvedAt: new Date(),
         resolutionNotes: notes,

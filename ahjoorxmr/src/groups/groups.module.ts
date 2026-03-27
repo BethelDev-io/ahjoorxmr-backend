@@ -11,6 +11,8 @@ import { WinstonLogger } from '../common/logger/winston.logger';
 import { JwtAuthGuard } from './guards/jwt-auth.guard';
 import { NotificationsModule } from '../notification/notifications.module';
 import { StellarModule } from '../stellar/stellar.module';
+import { PayoutTransaction } from './entities/payout-transaction.entity';
+import { QueueModule } from '../bullmq/queue.module';
 
 /**
  * GroupsModule manages ROSCA group entities in the database.
@@ -19,9 +21,10 @@ import { StellarModule } from '../stellar/stellar.module';
  */
 @Module({
   imports: [
-    TypeOrmModule.forFeature([Group, Membership]),
+    TypeOrmModule.forFeature([Group, Membership, PayoutTransaction]),
     NotificationsModule,
     StellarModule,
+    QueueModule,
   ],
   controllers: [GroupsController, GroupsV2Controller],
   providers: [

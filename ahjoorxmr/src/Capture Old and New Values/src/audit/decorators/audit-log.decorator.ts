@@ -1,12 +1,12 @@
-import { SetMetadata } from "@nestjs/common";
+import { SetMetadata } from '@nestjs/common';
 
 export interface AuditLogOptions {
-  action: "CREATE" | "UPDATE" | "DELETE" | "READ";
+  action: 'CREATE' | 'UPDATE' | 'DELETE' | 'READ';
   resource: string;
   excludeFields?: string[]; // Fields to exclude from audit (e.g., password, refreshTokenHash)
 }
 
-export const AUDIT_LOG_METADATA_KEY = "audit:log";
+export const AUDIT_LOG_METADATA_KEY = 'audit:log';
 
 /**
  * Decorator to mark endpoints for audit logging

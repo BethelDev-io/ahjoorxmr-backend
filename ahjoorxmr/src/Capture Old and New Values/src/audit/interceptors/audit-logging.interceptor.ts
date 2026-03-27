@@ -3,25 +3,25 @@ import {
   NestInterceptor,
   ExecutionContext,
   CallHandler,
-} from "@nestjs/common";
-import { Observable } from "rxjs";
-import { tap } from "rxjs/operators";
-import { Reflector } from "@nestjs/core";
-import { Request, Response } from "express";
-import { AuditLogService } from "../services/audit-log.service";
+} from '@nestjs/common';
+import { Observable } from 'rxjs';
+import { tap } from 'rxjs/operators';
+import { Reflector } from '@nestjs/core';
+import { Request, Response } from 'express';
+import { AuditLogService } from '../services/audit-log.service';
 import {
   AUDIT_LOG_METADATA_KEY,
   AuditLogOptions,
-} from "../decorators/audit-log.decorator";
+} from '../decorators/audit-log.decorator';
 
 // Sensitive fields to exclude from audit logs
 const SENSITIVE_FIELDS = [
-  "password",
-  "refreshTokenHash",
-  "refreshToken",
-  "resetToken",
-  "secretKey",
-  "apiKey",
+  'password',
+  'refreshTokenHash',
+  'refreshToken',
+  'resetToken',
+  'secretKey',
+  'apiKey',
 ];
 
 interface AuthenticatedRequest extends Request {
@@ -58,7 +58,7 @@ export class AuditLoggingInterceptor implements NestInterceptor {
     }
 
     const startTime = Date.now();
-    const userId = request.user?.id || "system";
+    const userId = request.user?.id || 'system';
     const ipAddress = this.getIpAddress(request);
     const endpoint = `${request.method} ${request.path}`;
     const method = request.method;
@@ -69,24 +69,24 @@ export class AuditLoggingInterceptor implements NestInterceptor {
 
     // For PATCH/PUT requests, we need to fetch the current state
     if (
-      (method === "PATCH" || method === "PUT") &&
+      (method === 'PATCH' || method === 'PUT') &&
       context.switchToHttp().getArgByIndex(0)
     ) {
       resourceId = request.params.id || null;
-      if (resourceId && context.getClass().name.includes("Controller")) {
+      if (resourceId && context.getClass().name.includes('Controller')) {
         // Store original body for later reference if needed
         previousValue = { ...request.body };
       }
     }
 
     // For POST requests, previous value is null
-    if (method === "POST") {
+    if (method === 'POST') {
       resourceId = null;
     }
 
     // Capture new value (request body)
     let newValue: Record<string, any> | null = null;
-    if (["POST", "PATCH", "PUT"].includes(method) && request.body) {
+    if (['POST', 'PATCH', 'PUT'].includes(method) && request.body) {
       newValue = this.sanitizeData(request.body, auditOptions.excludeFields);
     }
 
@@ -103,7 +103,7 @@ export class AuditLoggingInterceptor implements NestInterceptor {
               userId,
               action: auditOptions.action,
               resource: auditOptions.resource,
-              resourceId: resourceId || "unknown",
+              resourceId: resourceId || 'unknown',
               previousValue,
               newValue,
               endpoint,
@@ -113,7 +113,7 @@ export class AuditLoggingInterceptor implements NestInterceptor {
             });
           } catch (error) {
             // Log audit error but don't break the request
-            console.error("Failed to create audit log:", error);
+            console.error('Failed to create audit log:', error);
           }
         },
         async (error) => {
@@ -123,17 +123,17 @@ export class AuditLoggingInterceptor implements NestInterceptor {
               userId,
               action: auditOptions.action,
               resource: auditOptions.resource,
-              resourceId: resourceId || "unknown",
+              resourceId: resourceId || 'unknown',
               previousValue,
               newValue,
               endpoint,
               method,
               ipAddress,
               statusCode: response.statusCode || 500,
-              errorMessage: error?.message || "Unknown error",
+              errorMessage: error?.message || 'Unknown error',
             });
           } catch (auditError) {
-            console.error("Failed to create audit log for error:", auditError);
+            console.error('Failed to create audit log for error:', auditError);
           }
         },
       ),
@@ -153,7 +153,7 @@ export class AuditLoggingInterceptor implements NestInterceptor {
 
     excludeFields.forEach((field) => {
       if (field in sanitized) {
-        sanitized[field] = "[REDACTED]";
+        sanitized[field] = '[REDACTED]';
       }
     });
 
@@ -165,9 +165,9 @@ export class AuditLoggingInterceptor implements NestInterceptor {
    */
   private getIpAddress(request: AuthenticatedRequest): string {
     return (
-      (request.headers["x-forwarded-for"] as string)?.split(",")[0] ||
+      (request.headers['x-forwarded-for'] as string)?.split(',')[0] ||
       request.socket?.remoteAddress ||
-      "unknown"
+      'unknown'
     );
   }
 }

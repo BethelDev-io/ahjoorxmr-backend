@@ -1,8 +1,8 @@
-import { Injectable, ConflictException } from "@nestjs/common";
-import { InjectRepository } from "@nestjs/typeorm";
-import { Repository } from "typeorm";
-import { Contribution } from "./contribution.entity";
-import { CreateContributionDto } from "./dto/create-contribution.dto";
+import { Injectable, ConflictException } from '@nestjs/common';
+import { InjectRepository } from '@nestjs/typeorm';
+import { Repository } from 'typeorm';
+import { Contribution } from './contribution.entity';
+import { CreateContributionDto } from './dto/create-contribution.dto';
 
 @Injectable()
 export class ContributionsService {
@@ -11,9 +11,7 @@ export class ContributionsService {
     private readonly contributionRepository: Repository<Contribution>,
   ) {}
 
-  async createContribution(
-    createContributionDto: CreateContributionDto,
-  ): Promise<Contribution> {
+  async createContribution(createContributionDto: CreateContributionDto): Promise<Contribution> {
     const { groupId, userId, roundNumber } = createContributionDto;
 
     // Explicitly check for an existing contribution for the same round
@@ -32,9 +30,7 @@ export class ContributionsService {
     }
 
     // Create and save the new contribution
-    const contribution = this.contributionRepository.create(
-      createContributionDto,
-    );
+    const contribution = this.contributionRepository.create(createContributionDto);
     return this.contributionRepository.save(contribution);
   }
 
@@ -46,10 +42,7 @@ export class ContributionsService {
     return this.contributionRepository.findOne({ where: { id } });
   }
 
-  async findByGroupAndUser(
-    groupId: string,
-    userId: string,
-  ): Promise<Contribution[]> {
+  async findByGroupAndUser(groupId: string, userId: string): Promise<Contribution[]> {
     return this.contributionRepository.find({
       where: {
         groupId,
@@ -58,10 +51,7 @@ export class ContributionsService {
     });
   }
 
-  async findByRound(
-    groupId: string,
-    roundNumber: number,
-  ): Promise<Contribution[]> {
+  async findByRound(groupId: string, roundNumber: number): Promise<Contribution[]> {
     return this.contributionRepository.find({
       where: {
         groupId,

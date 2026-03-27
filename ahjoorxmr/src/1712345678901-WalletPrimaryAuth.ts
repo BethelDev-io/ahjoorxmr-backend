@@ -99,7 +99,10 @@ export class WalletPrimaryAuth1712345678901 implements MigrationInterface {
 
       await queryRunner.createIndex(
         'users',
-        new TableIndex({ name: 'IDX_users_walletAddress', columnNames: ['walletAddress'] }),
+        new TableIndex({
+          name: 'IDX_users_walletAddress',
+          columnNames: ['walletAddress'],
+        }),
       );
 
       await queryRunner.createIndex(

@@ -6,6 +6,7 @@ import {
   BadGatewayException,
   ConflictException,
 } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Group } from '../groups/entities/group.entity';
@@ -14,6 +15,9 @@ import { GroupStatus } from '../groups/entities/group-status.enum';
 import { StellarService } from '../stellar/stellar.service';
 import { NotificationsService } from '../notification/notifications.service';
 import { NotificationType } from '../notification/notification-type.enum';
+import { PayoutTransaction } from './entities/payout-transaction.entity';
+import { PayoutTransactionStatus } from './entities/payout-transaction-status.enum';
+import { QueueService } from '../bullmq/queue.service';
 
 @Injectable()
 export class PayoutService {
@@ -24,8 +28,12 @@ export class PayoutService {
     private readonly groupRepository: Repository<Group>,
     @InjectRepository(Membership)
     private readonly membershipRepository: Repository<Membership>,
+    @InjectRepository(PayoutTransaction)
+    private readonly payoutTransactionRepository: Repository<PayoutTransaction>,
     private readonly stellarService: StellarService,
     private readonly notificationsService: NotificationsService,
+    private readonly queueService: QueueService,
+    private readonly configService: ConfigService,
   ) {}
 
   /**
@@ -35,7 +43,9 @@ export class PayoutService {
    * On success, updates membership and emits notification.
    */
   async distributePayout(groupId: string, round: number): Promise<string> {
-    this.logger.log(`Starting payout distribution for group ${groupId}, round ${round}`);
+    this.logger.log(
+      `Starting payout distribution for group ${groupId}, round ${round}`,
+    );
 
     const group = await this.groupRepository.findOne({
       where: { id: groupId },
@@ -46,7 +56,9 @@ export class PayoutService {
     }
 
     if (group.status !== GroupStatus.ACTIVE) {
-      throw new BadRequestException('Group must be ACTIVE to distribute payout');
+      throw new BadRequestException(
+        'Group must be ACTIVE to distribute payout',
+      );
     }
 
     if (!group.contractAddress) {
@@ -67,13 +79,47 @@ export class PayoutService {
     }
 
     if (recipient.hasReceivedPayout) {
-      this.logger.warn(`Member ${recipient.userId} has already received payout for group ${groupId}`);
+      this.logger.warn(
+        `Member ${recipient.userId} has already received payout for group ${groupId}`,
+      );
       throw new ConflictException('Member has already received payout');
     }
 
     this.logger.log(
       `Disbursing payout to ${recipient.walletAddress} (User: ${recipient.userId}) for group ${groupId}, round ${round}`,
     );
+
+    const payoutOrderId = this.buildPayoutOrderId(groupId, round);
+    const existingPayoutTransaction =
+      await this.payoutTransactionRepository.findOne({
+        where: { payoutOrderId },
+      });
+
+    if (existingPayoutTransaction) {
+      this.logger.warn(
+        `Payout transaction already exists for ${payoutOrderId}; returning existing state ${existingPayoutTransaction.status}`,
+      );
+
+      if (
+        existingPayoutTransaction.status === PayoutTransactionStatus.SUBMITTED
+      ) {
+        await this.queueService.addPayoutReconciliation({
+          payoutTransactionId: existingPayoutTransaction.id,
+        });
+      }
+
+      return (
+        existingPayoutTransaction.txHash ??
+        `payout_${existingPayoutTransaction.status.toLowerCase()}_${existingPayoutTransaction.id}`
+      );
+    }
+
+    const payoutTransaction = this.payoutTransactionRepository.create({
+      payoutOrderId,
+      status: PayoutTransactionStatus.PENDING_SUBMISSION,
+      txHash: null,
+    });
+    await this.payoutTransactionRepository.save(payoutTransaction);
 
     let txHash: string;
     try {
@@ -82,13 +128,40 @@ export class PayoutService {
         recipient.walletAddress,
         group.contributionAmount,
       );
+
+      payoutTransaction.txHash = txHash;
+
+      if (
+        this.configService.get<string>(
+          'SIMULATE_PAYOUT_CRASH_AFTER_SUBMIT',
+          'false',
+        ) === 'true'
+      ) {
+        throw new Error(
+          'Simulated crash after submitTransaction and before status update',
+        );
+      }
+
+      payoutTransaction.status = PayoutTransactionStatus.SUBMITTED;
+      await this.payoutTransactionRepository.save(payoutTransaction);
+
+      await this.queueService.addPayoutReconciliation({
+        payoutTransactionId: payoutTransaction.id,
+      });
     } catch (error) {
+      if (!payoutTransaction.txHash) {
+        payoutTransaction.status = PayoutTransactionStatus.FAILED;
+        await this.payoutTransactionRepository.save(payoutTransaction);
+      }
+
       this.logger.error(
         `Failed to disburse payout for group ${groupId}, round ${round}: ${error.message}`,
         error.stack,
       );
       // Requirement: Failed contract invocation returns a 502 to the caller.
-      throw new BadGatewayException(`Contract invocation failed: ${error.message}`);
+      throw new BadGatewayException(
+        `Contract invocation failed: ${error.message}`,
+      );
     }
 
     // On success, set membership.hasReceivedPayout = true and record transaction hash
@@ -122,5 +195,9 @@ export class PayoutService {
     }
 
     return txHash;
+  }
+
+  private buildPayoutOrderId(groupId: string, round: number): string {
+    return `${groupId}:${round}`;
   }
 }

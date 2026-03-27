@@ -78,7 +78,9 @@ describe('Stale Group Full Flow (Integration)', () => {
 
   // ── Helpers ───────────────────────────────────────────────────────────────
 
-  const createActiveGroup = async (overrides: Partial<Group> = {}): Promise<Group> => {
+  const createActiveGroup = async (
+    overrides: Partial<Group> = {},
+  ): Promise<Group> => {
     const group = groupRepository.create({
       id: 'group-test-uuid',
       name: 'Test Savings Group',
@@ -210,7 +212,11 @@ describe('Stale Group Full Flow (Integration)', () => {
 
       const reason = 'Group confirmed resuming next cycle';
 
-      await groupsService.reactivate('group-test-uuid', 'platform-admin', reason);
+      await groupsService.reactivate(
+        'group-test-uuid',
+        'platform-admin',
+        reason,
+      );
 
       const notification = await notificationRepository.findOne({
         where: {
@@ -283,7 +289,9 @@ describe('Stale Group Full Flow (Integration)', () => {
         limit: 20,
       });
 
-      expect(result.data.every((g) => g.status === GroupStatus.STALE)).toBe(true);
+      expect(result.data.every((g) => g.status === GroupStatus.STALE)).toBe(
+        true,
+      );
       expect(result.total).toBeGreaterThan(0);
     });
 
@@ -297,8 +305,12 @@ describe('Stale Group Full Flow (Integration)', () => {
         limit: 20,
       });
 
-      expect(result.data.every((g) => g.status === GroupStatus.ACTIVE)).toBe(true);
-      expect(result.data.find((g) => g.id === 'group-test-uuid')).toBeUndefined();
+      expect(result.data.every((g) => g.status === GroupStatus.ACTIVE)).toBe(
+        true,
+      );
+      expect(
+        result.data.find((g) => g.id === 'group-test-uuid'),
+      ).toBeUndefined();
     });
   });
 });

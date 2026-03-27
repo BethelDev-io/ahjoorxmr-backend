@@ -20,9 +20,13 @@ export class AuthService {
     private readonly configService: ConfigService,
     private readonly twoFactorService: TwoFactorService,
     private readonly stellarService: StellarService,
-  ) { }
+  ) {}
 
-  async registerWithWallet(walletAddress: string, signature: string, challenge: string) {
+  async registerWithWallet(
+    walletAddress: string,
+    signature: string,
+    challenge: string,
+  ) {
     const isValid = this.stellarService.verifySignature(
       walletAddress,
       challenge,
@@ -135,7 +139,9 @@ export class AuthService {
     }
 
     // Increment token version for rotation
-    const newTokenVersion = await this.usersService.incrementTokenVersion(user.id);
+    const newTokenVersion = await this.usersService.incrementTokenVersion(
+      user.id,
+    );
 
     const tokens = await this.generateTokens(
       user.walletAddress,
@@ -168,7 +174,12 @@ export class AuthService {
     return this.usersService.findById(userId);
   }
 
-  async generateTokens(sub: string, email: string, role: string, tokenVersion?: number) {
+  async generateTokens(
+    sub: string,
+    email: string,
+    role: string,
+    tokenVersion?: number,
+  ) {
     const user = await this.usersService.findByWalletAddress(sub);
     const version = tokenVersion ?? user.tokenVersion ?? 0;
 

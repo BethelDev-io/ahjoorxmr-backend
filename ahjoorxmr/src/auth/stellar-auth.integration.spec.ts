@@ -22,14 +22,14 @@ describe('Auth - Stellar Wallet Flow (Integration)', () => {
     const moduleFixture: TestingModule = await Test.createTestingModule({
       imports: [AuthModule],
     })
-    .overrideProvider(getRepositoryToken(User))
-    .useValue({
-      findOne: jest.fn(),
-      create: jest.fn(),
-      save: jest.fn(),
-      update: jest.fn(),
-    })
-    .compile();
+      .overrideProvider(getRepositoryToken(User))
+      .useValue({
+        findOne: jest.fn(),
+        create: jest.fn(),
+        save: jest.fn(),
+        update: jest.fn(),
+      })
+      .compile();
 
     app = moduleFixture.createNestApplication();
     await app.init();
@@ -89,7 +89,9 @@ describe('Auth - Stellar Wallet Flow (Integration)', () => {
         email: 'test@example.com',
       } as User;
 
-      jest.spyOn(usersService, 'findByWalletAddress').mockResolvedValue(existingUser);
+      jest
+        .spyOn(usersService, 'findByWalletAddress')
+        .mockResolvedValue(existingUser);
 
       const response = await request(app.getHttpServer())
         .post('/api/v1/auth/wallet/register')

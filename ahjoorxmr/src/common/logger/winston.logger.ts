@@ -18,14 +18,14 @@ export class WinstonLogger implements LoggerService {
           if (correlationId) {
             info.correlationId = correlationId;
           }
-          
+
           const span = trace.getActiveSpan();
           if (span) {
             const spanContext = span.spanContext();
             info.traceId = spanContext.traceId;
             info.spanId = spanContext.spanId;
           }
-          
+
           return info;
         })(),
         winston.format.json(),

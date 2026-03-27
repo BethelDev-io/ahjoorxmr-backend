@@ -18,11 +18,11 @@ describe('WinstonLogger', () => {
 
   it('should include correlationId in log entries when available', (done) => {
     const correlationId = 'test-correlation-id';
-    
+
     asyncLocalStorage.run({ correlationId }, () => {
       const logSpy = jest.spyOn((logger as any).logger, 'info');
       logger.log('Test message', 'TestContext');
-      
+
       expect(logSpy).toHaveBeenCalled();
       done();
     });
@@ -51,7 +51,9 @@ describe('WinstonLogger', () => {
     const logSpy = jest.spyOn((logger as any).logger, 'info');
     logger.log('Test message', 'TestContext');
 
-    expect(logSpy).toHaveBeenCalledWith('Test message', { context: 'TestContext' });
+    expect(logSpy).toHaveBeenCalledWith('Test message', {
+      context: 'TestContext',
+    });
   });
 
   it('should log errors with trace information', () => {
@@ -68,13 +70,17 @@ describe('WinstonLogger', () => {
     const warnSpy = jest.spyOn((logger as any).logger, 'warn');
     logger.warn('Warning message', 'WarnContext');
 
-    expect(warnSpy).toHaveBeenCalledWith('Warning message', { context: 'WarnContext' });
+    expect(warnSpy).toHaveBeenCalledWith('Warning message', {
+      context: 'WarnContext',
+    });
   });
 
   it('should log debug messages', () => {
     const debugSpy = jest.spyOn((logger as any).logger, 'debug');
     logger.debug('Debug message', 'DebugContext');
 
-    expect(debugSpy).toHaveBeenCalledWith('Debug message', { context: 'DebugContext' });
+    expect(debugSpy).toHaveBeenCalledWith('Debug message', {
+      context: 'DebugContext',
+    });
   });
 });

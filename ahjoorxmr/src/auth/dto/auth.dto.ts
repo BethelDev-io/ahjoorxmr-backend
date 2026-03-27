@@ -40,7 +40,9 @@ export class RefreshTokenDto {
 }
 
 export class RegisterWithWalletDto {
-  @ApiProperty({ example: 'GBVZM3OSDLSNP5LJJQAYZMJQJIQXQP5PGLLQZXEYQZRTDMZQNM3NLFB' })
+  @ApiProperty({
+    example: 'GBVZM3OSDLSNP5LJJQAYZMJQJIQXQP5PGLLQZXEYQZRTDMZQNM3NLFB',
+  })
   @IsString()
   @IsNotEmpty()
   walletAddress: string;

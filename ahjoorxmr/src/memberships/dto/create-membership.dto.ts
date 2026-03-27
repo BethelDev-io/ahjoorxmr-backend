@@ -21,4 +21,3 @@ export class CreateMembershipDto {
   @MinLength(1)
   walletAddress: string;
 }
-

@@ -290,10 +290,10 @@ describe('DeadLetterService', () => {
       await service.recordDeadLetter(payload);
 
       // Should NOT pause or send critical alert
-      const criticalAlerts = mockNotificationService.notifyAdmins.mock.calls.filter(
-        (call) =>
-          call[0].title && call[0].title.includes('CRITICAL'),
-      );
+      const criticalAlerts =
+        mockNotificationService.notifyAdmins.mock.calls.filter(
+          (call) => call[0].title && call[0].title.includes('CRITICAL'),
+        );
       expect(criticalAlerts.length).toBe(0);
       expect(mockDeadLetterRepository.update).not.toHaveBeenCalled();
     });
