@@ -124,7 +124,11 @@ export class SchedulerService {
             await this.groupStatusService.checkInactiveGroups();
           const advancedCount =
             await this.groupStatusService.advanceStalledRounds();
-          return { updatedCount, inactiveGroupCount: inactiveGroups.length, advancedCount };
+          return {
+            updatedCount,
+            inactiveGroupCount: inactiveGroups.length,
+            advancedCount,
+          };
         }, taskName);
       },
       300, // 5 minutes lock TTL

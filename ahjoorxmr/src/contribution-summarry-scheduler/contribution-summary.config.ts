@@ -12,7 +12,6 @@ export interface ContributionSummaryConfig {
 export const contributionSummaryConfig = registerAs(
   'contributionSummary',
   (): ContributionSummaryConfig => ({
-    reminderSchedule:
-      process.env.CONTRIBUTION_REMINDER_SCHEDULE ?? '0 8 * * *',
+    reminderSchedule: process.env.CONTRIBUTION_REMINDER_SCHEDULE ?? '0 8 * * *',
   }),
 );

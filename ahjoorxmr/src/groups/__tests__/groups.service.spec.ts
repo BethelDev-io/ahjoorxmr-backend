@@ -274,23 +274,23 @@ describe('GroupsService', () => {
     it('should throw BadRequestException when maxMembers != totalRounds', async () => {
       const invalidDto = { ...dto, totalRounds: 12, maxMembers: 10 };
 
-      await expect(service.createGroup(invalidDto, ADMIN_WALLET)).rejects.toThrow(
-        BadRequestException,
-      );
-      await expect(service.createGroup(invalidDto, ADMIN_WALLET)).rejects.toThrow(
-        'maxMembers must equal totalRounds',
-      );
+      await expect(
+        service.createGroup(invalidDto, ADMIN_WALLET),
+      ).rejects.toThrow(BadRequestException);
+      await expect(
+        service.createGroup(invalidDto, ADMIN_WALLET),
+      ).rejects.toThrow('maxMembers must equal totalRounds');
     });
 
     it('should throw BadRequestException when minMembers > maxMembers', async () => {
       const invalidDto = { ...dto, totalRounds: 5, minMembers: 8 };
 
-      await expect(service.createGroup(invalidDto, ADMIN_WALLET)).rejects.toThrow(
-        BadRequestException,
-      );
-      await expect(service.createGroup(invalidDto, ADMIN_WALLET)).rejects.toThrow(
-        'minMembers must be less than or equal to maxMembers',
-      );
+      await expect(
+        service.createGroup(invalidDto, ADMIN_WALLET),
+      ).rejects.toThrow(BadRequestException);
+      await expect(
+        service.createGroup(invalidDto, ADMIN_WALLET),
+      ).rejects.toThrow('minMembers must be less than or equal to maxMembers');
     });
 
     it('should default maxMembers to totalRounds when not provided', async () => {
@@ -805,9 +805,9 @@ describe('GroupsService', () => {
      *  with an EntityManager that delegates to the outer mock repositories. */
     const buildDataSourceMock = (groupOverride?: Partial<Group>) => {
       const innerGroupRepo = {
-        findOne: jest.fn().mockImplementation(() =>
-          Promise.resolve(groupOverride ?? null),
-        ),
+        findOne: jest
+          .fn()
+          .mockImplementation(() => Promise.resolve(groupOverride ?? null)),
         save: jest.fn().mockImplementation((g) => Promise.resolve(g)),
       };
       const innerMembershipRepo = {
@@ -852,11 +852,17 @@ describe('GroupsService', () => {
         ],
       });
 
-      const ds = buildDataSourceMock({ ...mockGroup, memberships: mockGroup.memberships });
+      const ds = buildDataSourceMock({
+        ...mockGroup,
+        memberships: mockGroup.memberships,
+      });
       (mockDataSource as any).transaction = ds.transaction;
 
       groupRepository.findOne!.mockResolvedValue(mockGroup);
-      ds._innerGroupRepo.findOne.mockResolvedValue({ ...mockGroup, memberships: mockGroup.memberships });
+      ds._innerGroupRepo.findOne.mockResolvedValue({
+        ...mockGroup,
+        memberships: mockGroup.memberships,
+      });
 
       await service.advanceRound(groupId, adminWallet);
 
@@ -885,9 +891,14 @@ describe('GroupsService', () => {
         memberships: [recipient],
       });
 
-      (stellarService.disbursePayout as jest.Mock).mockResolvedValue('TX_HASH_ABC');
+      (stellarService.disbursePayout as jest.Mock).mockResolvedValue(
+        'TX_HASH_ABC',
+      );
 
-      const ds = buildDataSourceMock({ ...mockGroup, memberships: [{ ...recipient }] });
+      const ds = buildDataSourceMock({
+        ...mockGroup,
+        memberships: [{ ...recipient }],
+      });
       (mockDataSource as any).transaction = ds.transaction;
       groupRepository.findOne!.mockResolvedValue(mockGroup);
 
@@ -953,7 +964,10 @@ describe('GroupsService', () => {
       const advancedGroup = { ...mockGroup, currentRound: 2 } as Group;
       groupRepository.findOne!.mockResolvedValue(mockGroup);
 
-      const ds = buildDataSourceMock({ ...mockGroup, memberships: [member1, member2] });
+      const ds = buildDataSourceMock({
+        ...mockGroup,
+        memberships: [member1, member2],
+      });
       ds._innerGroupRepo.save.mockResolvedValue(advancedGroup);
       (mockDataSource as any).transaction = ds.transaction;
 
@@ -1066,7 +1080,10 @@ describe('GroupsService', () => {
       });
 
       groupRepository.findOne!.mockResolvedValue(mockGroup);
-      const ds = buildDataSourceMock({ ...mockGroup, memberships: [{ ...member1 }, { ...member2 }] });
+      const ds = buildDataSourceMock({
+        ...mockGroup,
+        memberships: [{ ...member1 }, { ...member2 }],
+      });
       (mockDataSource as any).transaction = ds.transaction;
 
       await service.advanceRound(groupId, adminWallet);
@@ -1099,8 +1116,14 @@ describe('GroupsService', () => {
       });
 
       groupRepository.findOne!.mockResolvedValue(mockGroup);
-      const ds = buildDataSourceMock({ ...mockGroup, memberships: [{ ...member1 }, { ...member2 }] });
-      ds._innerGroupRepo.save.mockResolvedValue({ ...mockGroup, currentRound: 2 });
+      const ds = buildDataSourceMock({
+        ...mockGroup,
+        memberships: [{ ...member1 }, { ...member2 }],
+      });
+      ds._innerGroupRepo.save.mockResolvedValue({
+        ...mockGroup,
+        currentRound: 2,
+      });
       (mockDataSource as any).transaction = ds.transaction;
 
       await service.advanceRound(groupId, adminWallet);
@@ -1159,7 +1182,10 @@ describe('GroupsService', () => {
       });
 
       groupRepository.findOne!.mockResolvedValue(mockGroup);
-      const ds = buildDataSourceMock({ ...mockGroup, memberships: [{ ...member }] });
+      const ds = buildDataSourceMock({
+        ...mockGroup,
+        memberships: [{ ...member }],
+      });
       (mockDataSource as any).transaction = ds.transaction;
 
       await service.advanceRound(groupId, adminWallet);

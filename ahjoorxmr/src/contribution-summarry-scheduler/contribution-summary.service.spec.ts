@@ -15,13 +15,17 @@ import {
 
 // ─── Helpers ────────────────────────────────────────────────────────────────
 
-function makeGroup(overrides: Partial<Group> & { memberOverrides?: any[] } = {}): Group {
+function makeGroup(
+  overrides: Partial<Group> & { memberOverrides?: any[] } = {},
+): Group {
   const { memberOverrides, ...rest } = overrides;
 
-  const members = (memberOverrides ?? [
-    { userId: 'user-1', groupId: 'group-1', hasPaidCurrentRound: false },
-    { userId: 'user-2', groupId: 'group-1', hasPaidCurrentRound: true },
-  ]).map((m: any) => ({ ...m, groupId: rest.id ?? 'group-1' }));
+  const members = (
+    memberOverrides ?? [
+      { userId: 'user-1', groupId: 'group-1', hasPaidCurrentRound: false },
+      { userId: 'user-2', groupId: 'group-1', hasPaidCurrentRound: true },
+    ]
+  ).map((m: any) => ({ ...m, groupId: rest.id ?? 'group-1' }));
 
   const group = {
     id: 'group-1',
@@ -299,9 +303,7 @@ describe('ContributionSummaryService', () => {
           id: 'group-A',
           name: 'Group A',
           currentRound: 1,
-          memberOverrides: [
-            { userId: 'uA1', hasPaidCurrentRound: false },
-          ],
+          memberOverrides: [{ userId: 'uA1', hasPaidCurrentRound: false }],
         }),
         makeGroup({
           id: 'group-B',

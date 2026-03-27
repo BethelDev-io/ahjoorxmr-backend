@@ -38,8 +38,8 @@ export class QueueController {
     @Query('page') page: string = '1',
     @Query('limit') limit: string = '50',
   ) {
-    let pageNum = parseInt(page, 10);
-    let limitNum = parseInt(limit, 10);
+    const pageNum = parseInt(page, 10);
+    const limitNum = parseInt(limit, 10);
 
     // Validate pagination parameters
     if (isNaN(pageNum) || pageNum < 1) {
@@ -84,8 +84,8 @@ export class QueueController {
     @Query('page') page: string = '1',
     @Query('limit') limit: string = '50',
   ) {
-    let pageNum = parseInt(page, 10);
-    let limitNum = parseInt(limit, 10);
+    const pageNum = parseInt(page, 10);
+    const limitNum = parseInt(limit, 10);
 
     if (isNaN(pageNum) || pageNum < 1) {
       throw new BadRequestException('Page must be a positive integer');

@@ -1,6 +1,7 @@
 import { Module, Global } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
 import { RedisService } from './redis.service';
+import { RedlockService } from './redlock.service';
 
 /**
  * RedisModule provides Redis caching capabilities throughout the application.
@@ -10,7 +11,7 @@ import { RedisService } from './redis.service';
 @Global()
 @Module({
   imports: [ConfigModule],
-  providers: [RedisService],
-  exports: [RedisService],
+  providers: [RedisService, RedlockService],
+  exports: [RedisService, RedlockService],
 })
 export class RedisModule {}

@@ -31,7 +31,9 @@ export class RoundService {
    * @returns true when the round was advanced, false when conditions were not met
    */
   async tryAdvanceRound(groupId: string): Promise<boolean> {
-    const group = await this.groupRepository.findOne({ where: { id: groupId } });
+    const group = await this.groupRepository.findOne({
+      where: { id: groupId },
+    });
 
     if (!group || group.status !== GroupStatus.ACTIVE) {
       return false;
@@ -61,7 +63,9 @@ export class RoundService {
     if (group.currentRound > group.totalRounds) {
       group.status = GroupStatus.COMPLETED;
       await this.groupRepository.save(group);
-      this.logger.log(`Group ${groupId} completed after ${group.totalRounds} rounds`);
+      this.logger.log(
+        `Group ${groupId} completed after ${group.totalRounds} rounds`,
+      );
 
       // Trigger payout for the last round
       try {

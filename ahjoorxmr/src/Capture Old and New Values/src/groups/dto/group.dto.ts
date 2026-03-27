@@ -1,4 +1,4 @@
-import { IsString, IsOptional, IsArray } from "class-validator";
+import { IsString, IsOptional, IsArray } from 'class-validator';
 
 export class CreateGroupDto {
   @IsString()
@@ -28,5 +28,5 @@ export class UpdateGroupDto {
 
   @IsOptional()
   @IsString()
-  status?: "active" | "inactive";
+  status?: 'active' | 'inactive';
 }

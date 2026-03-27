@@ -1,11 +1,11 @@
-import { Injectable } from "@nestjs/common";
-import { InjectRepository } from "@nestjs/typeorm";
-import { Repository } from "typeorm";
-import { AuditLog } from "../entities/audit-log.entity";
+import { Injectable } from '@nestjs/common';
+import { InjectRepository } from '@nestjs/typeorm';
+import { Repository } from 'typeorm';
+import { AuditLog } from '../entities/audit-log.entity';
 
 export interface CreateAuditLogDto {
   userId: string;
-  action: "CREATE" | "UPDATE" | "DELETE" | "READ";
+  action: 'CREATE' | 'UPDATE' | 'DELETE' | 'READ';
   resource: string;
   resourceId: string;
   previousValue?: Record<string, any>;
@@ -43,7 +43,7 @@ export class AuditLogService {
   ): Promise<{ data: AuditLog[]; total: number }> {
     const [data, total] = await this.auditLogRepository.findAndCount({
       where: { resource, resourceId },
-      order: { createdAt: "DESC" },
+      order: { createdAt: 'DESC' },
       take: limit,
       skip: offset,
     });
@@ -61,7 +61,7 @@ export class AuditLogService {
   ): Promise<{ data: AuditLog[]; total: number }> {
     const [data, total] = await this.auditLogRepository.findAndCount({
       where: { userId },
-      order: { createdAt: "DESC" },
+      order: { createdAt: 'DESC' },
       take: limit,
       skip: offset,
     });
@@ -89,25 +89,25 @@ export class AuditLogService {
       offset = 0,
     } = options || {};
 
-    const query = this.auditLogRepository.createQueryBuilder("audit");
+    const query = this.auditLogRepository.createQueryBuilder('audit');
 
     if (resource) {
-      query.andWhere("audit.resource = :resource", { resource });
+      query.andWhere('audit.resource = :resource', { resource });
     }
 
     if (resourceId) {
-      query.andWhere("audit.resourceId = :resourceId", { resourceId });
+      query.andWhere('audit.resourceId = :resourceId', { resourceId });
     }
 
     if (userId) {
-      query.andWhere("audit.userId = :userId", { userId });
+      query.andWhere('audit.userId = :userId', { userId });
     }
 
     if (action) {
-      query.andWhere("audit.action = :action", { action });
+      query.andWhere('audit.action = :action', { action });
     }
 
-    query.orderBy("audit.createdAt", "DESC");
+    query.orderBy('audit.createdAt', 'DESC');
     query.take(limit);
     query.skip(offset);
 

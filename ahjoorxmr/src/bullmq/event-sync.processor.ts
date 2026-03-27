@@ -43,9 +43,13 @@ export class EventSyncProcessor extends WorkerHost {
       case JOB_NAMES.SYNC_ON_CHAIN_EVENT:
         return this.handleSyncOnChainEvent(job as Job<SyncOnChainEventJobData>);
       case JOB_NAMES.PROCESS_TRANSFER_EVENT:
-        return this.handleTransferEvent(job as Job<ProcessTransferEventJobData>);
+        return this.handleTransferEvent(
+          job as Job<ProcessTransferEventJobData>,
+        );
       case JOB_NAMES.PROCESS_APPROVAL_EVENT:
-        return this.handleApprovalEvent(job as Job<ProcessApprovalEventJobData>);
+        return this.handleApprovalEvent(
+          job as Job<ProcessApprovalEventJobData>,
+        );
       default:
         throw new Error(`Unknown event-sync job type: ${job.name}`);
     }
@@ -55,27 +59,43 @@ export class EventSyncProcessor extends WorkerHost {
     job: Job<SyncOnChainEventJobData>,
   ): Promise<void> {
     const { contractAddress, chainId } = job.data;
-    this.logger.log(`Syncing on-chain event contract=${contractAddress} chain=${chainId}`);
+    this.logger.log(
+      `Syncing on-chain event contract=${contractAddress} chain=${chainId}`,
+    );
 
-    const group = await this.groupRepository.findOne({ where: { contractAddress } });
+    const group = await this.groupRepository.findOne({
+      where: { contractAddress },
+    });
     if (!group) {
       this.logger.warn(`No group found for contractAddress=${contractAddress}`);
       return;
     }
 
-    const state = (await this.stellarService.getGroupState(contractAddress)) as Record<string, unknown> | null;
+    const state = (await this.stellarService.getGroupState(
+      contractAddress,
+    )) as Record<string, unknown> | null;
     if (!state) return;
 
     let changed = false;
 
-    const onChainRound = typeof state['current_round'] === 'number' ? state['current_round'] : null;
+    const onChainRound =
+      typeof state['current_round'] === 'number'
+        ? state['current_round']
+        : null;
     if (onChainRound !== null && onChainRound !== group.currentRound) {
       group.currentRound = onChainRound;
       changed = true;
     }
 
-    const onChainStatus = typeof state['status'] === 'string' ? (state['status'] as string).toUpperCase() : null;
-    if (onChainStatus && onChainStatus !== group.status && Object.values(GroupStatus).includes(onChainStatus as GroupStatus)) {
+    const onChainStatus =
+      typeof state['status'] === 'string'
+        ? state['status'].toUpperCase()
+        : null;
+    if (
+      onChainStatus &&
+      onChainStatus !== group.status &&
+      Object.values(GroupStatus).includes(onChainStatus as GroupStatus)
+    ) {
       group.status = onChainStatus as GroupStatus;
       changed = true;
     }
@@ -89,26 +109,41 @@ export class EventSyncProcessor extends WorkerHost {
   private async handleTransferEvent(
     job: Job<ProcessTransferEventJobData>,
   ): Promise<void> {
-    const { from, to, amount, transactionHash, blockNumber, chainId } = job.data;
-    this.logger.log(`Processing Transfer from=${from} to=${to} tx=${transactionHash}`);
+    const { from, to, amount, transactionHash, blockNumber, chainId } =
+      job.data;
+    this.logger.log(
+      `Processing Transfer from=${from} to=${to} tx=${transactionHash}`,
+    );
 
     // Idempotency: skip if already recorded
-    const existing = await this.contributionRepository.findOne({ where: { transactionHash } });
+    const existing = await this.contributionRepository.findOne({
+      where: { transactionHash },
+    });
     if (existing) {
-      this.logger.log(`Transfer tx=${transactionHash} already recorded, skipping`);
+      this.logger.log(
+        `Transfer tx=${transactionHash} already recorded, skipping`,
+      );
       return;
     }
 
     // Resolve membership by wallet address (to = recipient / contributor wallet)
-    const membership = await this.membershipRepository.findOne({ where: { walletAddress: to } });
+    const membership = await this.membershipRepository.findOne({
+      where: { walletAddress: to },
+    });
     if (!membership) {
-      this.logger.warn(`No membership found for wallet=${to}, tx=${transactionHash}`);
+      this.logger.warn(
+        `No membership found for wallet=${to}, tx=${transactionHash}`,
+      );
       return;
     }
 
-    const group = await this.groupRepository.findOne({ where: { id: membership.groupId } });
+    const group = await this.groupRepository.findOne({
+      where: { id: membership.groupId },
+    });
     if (!group || group.status !== GroupStatus.ACTIVE) {
-      this.logger.warn(`Group ${membership.groupId} not active, skipping transfer tx=${transactionHash}`);
+      this.logger.warn(
+        `Group ${membership.groupId} not active, skipping transfer tx=${transactionHash}`,
+      );
       return;
     }
 
@@ -129,25 +164,37 @@ export class EventSyncProcessor extends WorkerHost {
     membership.contributionsMade += 1;
     await this.membershipRepository.save(membership);
 
-    this.logger.log(`Contribution recorded id=${contribution.id} for user=${membership.userId}`);
+    this.logger.log(
+      `Contribution recorded id=${contribution.id} for user=${membership.userId}`,
+    );
   }
 
   private async handleApprovalEvent(
     job: Job<ProcessApprovalEventJobData>,
   ): Promise<void> {
     const { owner, spender, amount, transactionHash, chainId } = job.data;
-    this.logger.log(`Processing Approval owner=${owner} spender=${spender} tx=${transactionHash}`);
+    this.logger.log(
+      `Processing Approval owner=${owner} spender=${spender} tx=${transactionHash}`,
+    );
 
     // Resolve membership by owner wallet
-    const membership = await this.membershipRepository.findOne({ where: { walletAddress: owner } });
+    const membership = await this.membershipRepository.findOne({
+      where: { walletAddress: owner },
+    });
     if (!membership) {
-      this.logger.warn(`No membership found for wallet=${owner}, tx=${transactionHash}`);
+      this.logger.warn(
+        `No membership found for wallet=${owner}, tx=${transactionHash}`,
+      );
       return;
     }
 
-    const group = await this.groupRepository.findOne({ where: { id: membership.groupId } });
+    const group = await this.groupRepository.findOne({
+      where: { id: membership.groupId },
+    });
     if (!group || group.status !== GroupStatus.ACTIVE) {
-      this.logger.warn(`Group ${membership.groupId} not active, skipping approval tx=${transactionHash}`);
+      this.logger.warn(
+        `Group ${membership.groupId} not active, skipping approval tx=${transactionHash}`,
+      );
       return;
     }
 
@@ -166,7 +213,9 @@ export class EventSyncProcessor extends WorkerHost {
         idempotencyKey: `payout-approval-${transactionHash}`,
       });
 
-      this.logger.log(`Payout recorded for user=${membership.userId} tx=${transactionHash}`);
+      this.logger.log(
+        `Payout recorded for user=${membership.userId} tx=${transactionHash}`,
+      );
     }
   }
 
@@ -187,7 +236,11 @@ export class EventSyncProcessor extends WorkerHost {
       this.logger.error(
         `Event-sync job [${job.name}] id=${job.id} exhausted all retries → moving to dead-letter queue`,
       );
-      await this.deadLetterService.moveToDeadLetter(job, error, QUEUE_NAMES.EVENT_SYNC);
+      await this.deadLetterService.moveToDeadLetter(
+        job,
+        error,
+        QUEUE_NAMES.EVENT_SYNC,
+      );
     }
   }
 
@@ -198,5 +251,7 @@ export class EventSyncProcessor extends WorkerHost {
 }
 
 export function eventSyncBackoffStrategy(attemptsMade: number): number {
-  return BACKOFF_DELAYS[attemptsMade] ?? BACKOFF_DELAYS[BACKOFF_DELAYS.length - 1];
+  return (
+    BACKOFF_DELAYS[attemptsMade] ?? BACKOFF_DELAYS[BACKOFF_DELAYS.length - 1]
+  );
 }

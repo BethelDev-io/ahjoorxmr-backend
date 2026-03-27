@@ -73,8 +73,12 @@ describe('JwtStrategy', () => {
 
       const payload = { sub: 'non-existent-id', walletAddress: 'GTEST...' };
 
-      await expect(strategy.validate(payload)).rejects.toThrow(UnauthorizedException);
-      await expect(strategy.validate(payload)).rejects.toThrow('User not found');
+      await expect(strategy.validate(payload)).rejects.toThrow(
+        UnauthorizedException,
+      );
+      await expect(strategy.validate(payload)).rejects.toThrow(
+        'User not found',
+      );
     });
 
     it('should include role in returned user object', async () => {

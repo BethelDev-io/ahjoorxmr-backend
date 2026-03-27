@@ -37,6 +37,11 @@ import { RateLimitExampleController } from './controllers/rate-limit-example.con
       useClass: CustomThrottlerGuard,
     },
   ],
-  exports: [ThrottlerModule, RedisThrottlerStorageService, TrustedIpService, WalletThrottlerGuard],
+  exports: [
+    ThrottlerModule,
+    RedisThrottlerStorageService,
+    TrustedIpService,
+    WalletThrottlerGuard,
+  ],
 })
 export class CustomThrottlerModule {}

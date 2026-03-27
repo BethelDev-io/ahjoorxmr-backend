@@ -21,6 +21,7 @@ import { User } from './users/entities/user.entity';
 import { Contribution } from './contributions/entities/contribution.entity';
 import { AuditLog } from './audit/entities/audit-log.entity';
 import { KycDocument } from './kyc/entities/kyc-document.entity';
+import { PayoutTransaction } from './groups/entities/payout-transaction.entity';
 import { KycModule } from './kyc/kyc.module';
 import { StellarModule } from './stellar/stellar.module';
 import { EventListenerModule } from './event-listener/event-listener.module';
@@ -51,7 +52,15 @@ import { CorrelationIdMiddleware } from './common/middleware/correlation-id.midd
           username: configService.get<string>('DB_USERNAME') || 'postgres',
           password: configService.get<string>('DB_PASSWORD') || 'postgres',
           database: configService.get<string>('DB_NAME') || 'ahjoorxmr',
-          entities: [Membership, Group, User, Contribution, AuditLog, KycDocument],
+          entities: [
+            Membership,
+            Group,
+            User,
+            Contribution,
+            AuditLog,
+            KycDocument,
+            PayoutTransaction,
+          ],
           synchronize: isDevelopment, // Auto-create tables only in development
           logging: isDevelopment, // Enable logging only in development
         };

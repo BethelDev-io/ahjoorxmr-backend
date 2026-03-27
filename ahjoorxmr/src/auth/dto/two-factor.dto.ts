@@ -35,12 +35,16 @@ export class Disable2FADto {
 }
 
 export class Login2FADto {
-  @ApiProperty({ description: 'Pre-auth token received from the login 403 response' })
+  @ApiProperty({
+    description: 'Pre-auth token received from the login 403 response',
+  })
   @IsString()
   @IsNotEmpty()
   preAuthToken: string;
 
-  @ApiProperty({ description: 'TOTP token from authenticator app or backup code' })
+  @ApiProperty({
+    description: 'TOTP token from authenticator app or backup code',
+  })
   @IsString()
   @IsNotEmpty()
   token: string;

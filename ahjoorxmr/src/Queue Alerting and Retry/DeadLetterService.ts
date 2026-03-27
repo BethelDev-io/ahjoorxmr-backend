@@ -37,15 +37,19 @@ export class DeadLetterService {
     private queueService: QueueService,
     private configService: ConfigService,
   ) {
-    this.MAX_CONSECUTIVE_FAILURES =
-      this.configService.get<number>('MAX_CONSECUTIVE_FAILURES', 3);
+    this.MAX_CONSECUTIVE_FAILURES = this.configService.get<number>(
+      'MAX_CONSECUTIVE_FAILURES',
+      3,
+    );
   }
 
   /**
    * Record a failed job in the dead letter queue
    * and trigger alerting/circuit-breaker logic
    */
-  async recordDeadLetter(payload: DeadLetterPayload): Promise<DeadLetterRecord> {
+  async recordDeadLetter(
+    payload: DeadLetterPayload,
+  ): Promise<DeadLetterRecord> {
     try {
       // Persist the dead letter record
       const deadLetterRecord = await this.deadLetterRepository.save({
@@ -130,7 +134,8 @@ export class DeadLetterService {
     }
 
     const tracker = this.consecutiveFailures[groupId];
-    const timeSinceLastFailure = now.getTime() - tracker.lastFailureTime.getTime();
+    const timeSinceLastFailure =
+      now.getTime() - tracker.lastFailureTime.getTime();
 
     // Reset counter if too much time has passed without failures
     if (timeSinceLastFailure > this.FAILURE_RESET_TIMEOUT_MS) {

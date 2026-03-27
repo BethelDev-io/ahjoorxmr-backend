@@ -8,7 +8,9 @@ export class KycDocumentResponseDto {
   @ApiProperty({ example: 'kyc/user-id/document.pdf' })
   storageKey: string;
 
-  @ApiProperty({ example: 'https://bucket.s3.amazonaws.com/kyc/user-id/document.pdf' })
+  @ApiProperty({
+    example: 'https://bucket.s3.amazonaws.com/kyc/user-id/document.pdf',
+  })
   url: string;
 
   @ApiProperty({ example: 'application/pdf' })

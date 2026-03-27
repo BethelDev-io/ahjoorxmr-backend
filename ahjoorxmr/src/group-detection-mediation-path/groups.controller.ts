@@ -34,7 +34,8 @@ export class GroupsController {
   @Get()
   @ApiOperation({
     summary: 'List all groups',
-    description: 'Returns a paginated list of groups. Supports filtering by status (ACTIVE, STALE, ARCHIVED).',
+    description:
+      'Returns a paginated list of groups. Supports filtering by status (ACTIVE, STALE, ARCHIVED).',
   })
   @ApiResponse({
     status: 200,

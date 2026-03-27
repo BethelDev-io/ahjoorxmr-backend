@@ -14,7 +14,8 @@ export class ChallengeRequestDto {
 export class ChallengeResponseDto {
   @ApiProperty({
     description: 'Challenge message to sign',
-    example: 'Sign this message to authenticate with Cheese Platform.\n\nWallet: G...\nNonce: ...\nTimestamp: ...',
+    example:
+      'Sign this message to authenticate with Cheese Platform.\n\nWallet: G...\nNonce: ...\nTimestamp: ...',
   })
   challenge: string;
 }
@@ -29,8 +30,8 @@ export class VerifyRequestDto {
   walletAddress: string;
 
   @ApiProperty({
-    description: 'Base64-encoded signature',
-    example: 'base64signature...',
+    description: 'Signed transaction envelope XDR (base64)',
+    example: 'AAAAAgAAA...',
   })
   @IsString()
   @IsNotEmpty()
@@ -38,7 +39,8 @@ export class VerifyRequestDto {
 
   @ApiProperty({
     description: 'Challenge message that was signed',
-    example: 'Sign this message to authenticate with Cheese Platform.\n\nWallet: G...\nNonce: ...\nTimestamp: ...',
+    example:
+      'Sign this message to authenticate with Cheese Platform.\n\nWallet: G...\nNonce: ...\nTimestamp: ...',
   })
   @IsString()
   @IsNotEmpty()

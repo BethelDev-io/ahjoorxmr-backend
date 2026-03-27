@@ -6,28 +6,28 @@ import {
   UpdateDateColumn,
   Index,
   Unique,
-} from "typeorm";
+} from 'typeorm';
 
-@Entity("contributions")
-@Unique(["groupId", "userId", "roundNumber"])
-@Index(["groupId", "userId", "roundNumber"])
+@Entity('contributions')
+@Unique(['groupId', 'userId', 'roundNumber'])
+@Index(['groupId', 'userId', 'roundNumber'])
 export class Contribution {
-  @PrimaryGeneratedColumn("uuid")
+  @PrimaryGeneratedColumn('uuid')
   id: string;
 
-  @Column("uuid")
+  @Column('uuid')
   groupId: string;
 
-  @Column("uuid")
+  @Column('uuid')
   userId: string;
 
-  @Column("integer")
+  @Column('integer')
   roundNumber: number;
 
-  @Column("varchar", { length: 512 })
+  @Column('varchar', { length: 512 })
   transactionHash: string;
 
-  @Column("decimal", { precision: 20, scale: 8 })
+  @Column('decimal', { precision: 20, scale: 8 })
   amount: number;
 
   @CreateDateColumn()

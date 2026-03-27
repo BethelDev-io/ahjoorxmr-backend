@@ -1,15 +1,15 @@
-import { Injectable, Logger } from "@nestjs/common";
-import * as Handlebars from "handlebars";
-import * as fs from "fs";
-import * as path from "path";
-import { NotificationType, EmailMetadata } from "@/common/types/email.types";
+import { Injectable, Logger } from '@nestjs/common';
+import * as Handlebars from 'handlebars';
+import * as fs from 'fs';
+import * as path from 'path';
+import { NotificationType, EmailMetadata } from '@/common/types/email.types';
 
 @Injectable()
 export class TemplateService {
   private readonly logger = new Logger(TemplateService.name);
   private templates: Map<NotificationType, Handlebars.TemplateDelegate> =
     new Map();
-  private readonly templatesPath = path.join(process.cwd(), "templates");
+  private readonly templatesPath = path.join(process.cwd(), 'templates');
 
   constructor() {
     this.loadTemplates();
@@ -17,9 +17,9 @@ export class TemplateService {
 
   private loadTemplates(): void {
     const templateMappings: { [key in NotificationType]: string } = {
-      [NotificationType.ROUND_OPENED]: "round-opened.hbs",
-      [NotificationType.PAYOUT_RECEIVED]: "payout-received.hbs",
-      [NotificationType.PAYMENT_REMINDER]: "payment-reminder.hbs",
+      [NotificationType.ROUND_OPENED]: 'round-opened.hbs',
+      [NotificationType.PAYOUT_RECEIVED]: 'payout-received.hbs',
+      [NotificationType.PAYMENT_REMINDER]: 'payment-reminder.hbs',
     };
 
     for (const [notificationType, templateFile] of Object.entries(
@@ -27,7 +27,7 @@ export class TemplateService {
     )) {
       try {
         const templatePath = path.join(this.templatesPath, templateFile);
-        const templateContent = fs.readFileSync(templatePath, "utf-8");
+        const templateContent = fs.readFileSync(templatePath, 'utf-8');
         const compiled = Handlebars.compile(templateContent);
         this.templates.set(notificationType as NotificationType, compiled);
         this.logger.debug(`Loaded template for ${notificationType}`);
@@ -87,33 +87,33 @@ export class TemplateService {
   ): void {
     const requiredFields: { [key in NotificationType]: string[] } = {
       [NotificationType.ROUND_OPENED]: [
-        "recipientEmail",
-        "recipientName",
-        "roundName",
-        "roundDescription",
-        "startDate",
-        "endDate",
-        "applicationDeadline",
-        "roundUrl",
+        'recipientEmail',
+        'recipientName',
+        'roundName',
+        'roundDescription',
+        'startDate',
+        'endDate',
+        'applicationDeadline',
+        'roundUrl',
       ],
       [NotificationType.PAYOUT_RECEIVED]: [
-        "recipientEmail",
-        "recipientName",
-        "payoutAmount",
-        "currency",
-        "transactionId",
-        "projectName",
-        "projectUrl",
-        "expectedDate",
+        'recipientEmail',
+        'recipientName',
+        'payoutAmount',
+        'currency',
+        'transactionId',
+        'projectName',
+        'projectUrl',
+        'expectedDate',
       ],
       [NotificationType.PAYMENT_REMINDER]: [
-        "recipientEmail",
-        "recipientName",
-        "dueDate",
-        "amount",
-        "currency",
-        "invoiceNumber",
-        "paymentUrl",
+        'recipientEmail',
+        'recipientName',
+        'dueDate',
+        'amount',
+        'currency',
+        'invoiceNumber',
+        'paymentUrl',
       ],
     };
 
@@ -121,7 +121,7 @@ export class TemplateService {
     const missing = required.filter((field) => !metadata.hasOwnProperty(field));
 
     if (missing.length > 0) {
-      throw new Error(`Missing required fields: ${missing.join(", ")}`);
+      throw new Error(`Missing required fields: ${missing.join(', ')}`);
     }
   }
 }

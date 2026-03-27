@@ -40,7 +40,9 @@ export class StaleGroupDetectionService {
       return;
     }
 
-    this.logger.log(`Found ${staleGroups.length} stale group(s). Processing...`);
+    this.logger.log(
+      `Found ${staleGroups.length} stale group(s). Processing...`,
+    );
 
     const now = new Date();
 

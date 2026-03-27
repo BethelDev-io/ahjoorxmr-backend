@@ -43,9 +43,14 @@ describe('RoundService', () => {
 
   beforeEach(async () => {
     groupRepo = { findOne: jest.fn(), save: jest.fn() };
-    membershipRepo = { find: jest.fn(), update: jest.fn().mockResolvedValue(undefined) };
+    membershipRepo = {
+      find: jest.fn(),
+      update: jest.fn().mockResolvedValue(undefined),
+    };
     notificationsService = { notifyBatch: jest.fn().mockResolvedValue([]) };
-    payoutService = { distributePayout: jest.fn().mockResolvedValue('TX_HASH') };
+    payoutService = {
+      distributePayout: jest.fn().mockResolvedValue('TX_HASH'),
+    };
 
     const module: TestingModule = await Test.createTestingModule({
       providers: [
@@ -81,7 +86,9 @@ describe('RoundService', () => {
   // ── All paid — must advance ────────────────────────────────────────────────
 
   it('advances round when all members have paid', async () => {
-    groupRepo.findOne.mockResolvedValue(makeGroup({ currentRound: 1, totalRounds: 3 }));
+    groupRepo.findOne.mockResolvedValue(
+      makeGroup({ currentRound: 1, totalRounds: 3 }),
+    );
     membershipRepo.find.mockResolvedValue([
       makeMembership('u1', true),
       makeMembership('u2', true),
@@ -104,7 +111,9 @@ describe('RoundService', () => {
   // ── ROUND_OPENED notification sent to all members ─────────────────────────
 
   it('sends ROUND_OPENED notifications to all members on advance', async () => {
-    groupRepo.findOne.mockResolvedValue(makeGroup({ currentRound: 1, totalRounds: 3 }));
+    groupRepo.findOne.mockResolvedValue(
+      makeGroup({ currentRound: 1, totalRounds: 3 }),
+    );
     membershipRepo.find.mockResolvedValue([
       makeMembership('u1', true),
       makeMembership('u2', true),
@@ -118,8 +127,14 @@ describe('RoundService', () => {
 
     expect(notificationsService.notifyBatch).toHaveBeenCalledWith(
       expect.arrayContaining([
-        expect.objectContaining({ userId: 'u1', type: NotificationType.ROUND_OPENED }),
-        expect.objectContaining({ userId: 'u2', type: NotificationType.ROUND_OPENED }),
+        expect.objectContaining({
+          userId: 'u1',
+          type: NotificationType.ROUND_OPENED,
+        }),
+        expect.objectContaining({
+          userId: 'u2',
+          type: NotificationType.ROUND_OPENED,
+        }),
       ]),
     );
   });
@@ -127,7 +142,9 @@ describe('RoundService', () => {
   // ── Final round — must transition to COMPLETED ────────────────────────────
 
   it('transitions group to COMPLETED when final round is completed', async () => {
-    groupRepo.findOne.mockResolvedValue(makeGroup({ currentRound: 3, totalRounds: 3 }));
+    groupRepo.findOne.mockResolvedValue(
+      makeGroup({ currentRound: 3, totalRounds: 3 }),
+    );
     membershipRepo.find.mockResolvedValue([
       makeMembership('u1', true),
       makeMembership('u2', true),
@@ -148,7 +165,9 @@ describe('RoundService', () => {
   // ── No-op for non-ACTIVE groups ───────────────────────────────────────────
 
   it('returns false and does nothing for a PENDING group', async () => {
-    groupRepo.findOne.mockResolvedValue(makeGroup({ status: GroupStatus.PENDING }));
+    groupRepo.findOne.mockResolvedValue(
+      makeGroup({ status: GroupStatus.PENDING }),
+    );
 
     const result = await service.tryAdvanceRound(GROUP_ID);
 
@@ -158,7 +177,9 @@ describe('RoundService', () => {
   });
 
   it('returns false and does nothing for a COMPLETED group', async () => {
-    groupRepo.findOne.mockResolvedValue(makeGroup({ status: GroupStatus.COMPLETED }));
+    groupRepo.findOne.mockResolvedValue(
+      makeGroup({ status: GroupStatus.COMPLETED }),
+    );
 
     const result = await service.tryAdvanceRound(GROUP_ID);
 
@@ -177,7 +198,9 @@ describe('RoundService', () => {
   // ── Edge: single member group ─────────────────────────────────────────────
 
   it('advances correctly for a single-member group', async () => {
-    groupRepo.findOne.mockResolvedValue(makeGroup({ currentRound: 1, totalRounds: 2 }));
+    groupRepo.findOne.mockResolvedValue(
+      makeGroup({ currentRound: 1, totalRounds: 2 }),
+    );
     membershipRepo.find.mockResolvedValue([makeMembership('u1', true)]);
     groupRepo.save.mockResolvedValue({});
 
@@ -192,7 +215,9 @@ describe('RoundService', () => {
   // ── Idempotency key format ────────────────────────────────────────────────
 
   it('uses correct idempotency key format in notifications', async () => {
-    groupRepo.findOne.mockResolvedValue(makeGroup({ currentRound: 1, totalRounds: 3 }));
+    groupRepo.findOne.mockResolvedValue(
+      makeGroup({ currentRound: 1, totalRounds: 3 }),
+    );
     membershipRepo.find.mockResolvedValue([makeMembership('u1', true)]);
     groupRepo.save.mockResolvedValue({});
 

@@ -11,12 +11,14 @@ import { BullBoardService } from './bull-board.service';
 import { EmailProcessor } from './email.processor';
 import { EventSyncProcessor } from './event-sync.processor';
 import { GroupSyncProcessor } from './group-sync.processor';
+import { PayoutReconciliationProcessor } from './payout-reconciliation.processor';
 import { MailModule } from '../mail/mail.module';
 import { StellarModule } from '../stellar/stellar.module';
 import { NotificationsModule } from '../notification/notifications.module';
 import { Group } from '../groups/entities/group.entity';
 import { Contribution } from '../contributions/entities/contribution.entity';
 import { Membership } from '../memberships/entities/membership.entity';
+import { PayoutTransaction } from '../groups/entities/payout-transaction.entity';
 
 /**
  * Custom backoff strategy registered globally via BullMQ worker options.
@@ -44,7 +46,12 @@ const sharedQueueOptions = {
     MailModule,
     StellarModule,
     NotificationsModule,
-    TypeOrmModule.forFeature([Group, Contribution, Membership]),
+    TypeOrmModule.forFeature([
+      Group,
+      Contribution,
+      Membership,
+      PayoutTransaction,
+    ]),
 
     // Register BullMQ with the shared ioredis client from RedisModule
     BullModule.forRootAsync({
@@ -71,6 +78,7 @@ const sharedQueueOptions = {
       { name: QUEUE_NAMES.EMAIL, ...sharedQueueOptions },
       { name: QUEUE_NAMES.EVENT_SYNC, ...sharedQueueOptions },
       { name: QUEUE_NAMES.GROUP_SYNC, ...sharedQueueOptions },
+      { name: QUEUE_NAMES.PAYOUT_RECONCILIATION, ...sharedQueueOptions },
       {
         name: QUEUE_NAMES.DEAD_LETTER,
         defaultJobOptions: { removeOnComplete: false, removeOnFail: false },
@@ -85,6 +93,7 @@ const sharedQueueOptions = {
     EmailProcessor,
     EventSyncProcessor,
     GroupSyncProcessor,
+    PayoutReconciliationProcessor,
   ],
   exports: [
     QueueService,

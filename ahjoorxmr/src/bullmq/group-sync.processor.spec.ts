@@ -8,9 +8,22 @@ import { StellarService } from '../stellar/stellar.service';
 import { Group } from '../groups/entities/group.entity';
 import { GroupStatus } from '../groups/entities/group-status.enum';
 import { JOB_NAMES, QUEUE_NAMES } from './queue.constants';
+import { RedlockService } from '../common/redis/redlock.service';
+import { ConfigService } from '@nestjs/config';
 
-const makeJob = (name: string, data: unknown, overrides: Partial<Job> = {}): Job =>
-  ({ id: 'grp-job-id', name, data, attemptsMade: 0, opts: { attempts: 3 }, ...overrides }) as unknown as Job;
+const makeJob = (
+  name: string,
+  data: unknown,
+  overrides: Partial<Job> = {},
+): Job =>
+  ({
+    id: 'grp-job-id',
+    name,
+    data,
+    attemptsMade: 0,
+    opts: { attempts: 3 },
+    ...overrides,
+  }) as unknown as Job;
 
 const GROUP_ID = 'group-uuid';
 const CONTRACT = '0xcontract';
@@ -27,20 +40,42 @@ describe('GroupSyncProcessor', () => {
   let processor: GroupSyncProcessor;
   let deadLetterService: jest.Mocked<DeadLetterService>;
   let stellarService: jest.Mocked<StellarService>;
+  let redlockService: { acquire: jest.Mock; release: jest.Mock };
   let groupRepo: { findOne: jest.Mock; find: jest.Mock; save: jest.Mock };
   let groupSyncQueue: { addBulk: jest.Mock };
 
   beforeEach(async () => {
     groupRepo = { findOne: jest.fn(), find: jest.fn(), save: jest.fn() };
     groupSyncQueue = { addBulk: jest.fn().mockResolvedValue([]) };
+    redlockService = {
+      acquire: jest
+        .fn()
+        .mockResolvedValue({ release: jest.fn().mockResolvedValue(undefined) }),
+      release: jest.fn().mockResolvedValue(undefined),
+    };
 
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         GroupSyncProcessor,
-        { provide: DeadLetterService, useValue: { moveToDeadLetter: jest.fn().mockResolvedValue(undefined) } },
+        {
+          provide: DeadLetterService,
+          useValue: {
+            moveToDeadLetter: jest.fn().mockResolvedValue(undefined),
+          },
+        },
         { provide: StellarService, useValue: { getGroupState: jest.fn() } },
+        { provide: RedlockService, useValue: redlockService },
+        {
+          provide: ConfigService,
+          useValue: {
+            get: jest.fn((key: string, defaultValue: string) => defaultValue),
+          },
+        },
         { provide: getRepositoryToken(Group), useValue: groupRepo },
-        { provide: getQueueToken(QUEUE_NAMES.GROUP_SYNC), useValue: groupSyncQueue },
+        {
+          provide: getQueueToken(QUEUE_NAMES.GROUP_SYNC),
+          useValue: groupSyncQueue,
+        },
       ],
     }).compile();
 
@@ -62,12 +97,20 @@ describe('GroupSyncProcessor', () => {
 
     it('updates currentRound when contract reports a new round', async () => {
       groupRepo.findOne.mockResolvedValue({ ...activeGroup });
-      stellarService.getGroupState.mockResolvedValue({ current_round: 3, status: 'ACTIVE' });
+      stellarService.getGroupState.mockResolvedValue({
+        current_round: 3,
+        status: 'ACTIVE',
+      });
       groupRepo.save.mockResolvedValue({});
 
       await processor.process(makeJob(JOB_NAMES.SYNC_GROUP_STATE, jobData));
 
       expect(stellarService.getGroupState).toHaveBeenCalledWith(CONTRACT);
+      expect(redlockService.acquire).toHaveBeenCalledWith(
+        `mediation:group:${GROUP_ID}`,
+        30000,
+      );
+      expect(redlockService.release).toHaveBeenCalled();
       expect(groupRepo.save).toHaveBeenCalledWith(
         expect.objectContaining({ currentRound: 3, staleAt: null }),
       );
@@ -75,7 +118,10 @@ describe('GroupSyncProcessor', () => {
 
     it('updates status when contract reports COMPLETED', async () => {
       groupRepo.findOne.mockResolvedValue({ ...activeGroup });
-      stellarService.getGroupState.mockResolvedValue({ current_round: 1, status: 'COMPLETED' });
+      stellarService.getGroupState.mockResolvedValue({
+        current_round: 1,
+        status: 'COMPLETED',
+      });
       groupRepo.save.mockResolvedValue({});
 
       await processor.process(makeJob(JOB_NAMES.SYNC_GROUP_STATE, jobData));
@@ -87,7 +133,10 @@ describe('GroupSyncProcessor', () => {
 
     it('skips save when already in sync', async () => {
       groupRepo.findOne.mockResolvedValue({ ...activeGroup });
-      stellarService.getGroupState.mockResolvedValue({ current_round: 1, status: 'ACTIVE' });
+      stellarService.getGroupState.mockResolvedValue({
+        current_round: 1,
+        status: 'ACTIVE',
+      });
 
       await processor.process(makeJob(JOB_NAMES.SYNC_GROUP_STATE, jobData));
 
@@ -104,11 +153,50 @@ describe('GroupSyncProcessor', () => {
 
     it('handles forceSync=true without error', async () => {
       groupRepo.findOne.mockResolvedValue({ ...activeGroup });
-      stellarService.getGroupState.mockResolvedValue({ current_round: 1, status: 'ACTIVE' });
+      stellarService.getGroupState.mockResolvedValue({
+        current_round: 1,
+        status: 'ACTIVE',
+      });
 
       await expect(
-        processor.process(makeJob(JOB_NAMES.SYNC_GROUP_STATE, { ...jobData, forceSync: true })),
+        processor.process(
+          makeJob(JOB_NAMES.SYNC_GROUP_STATE, { ...jobData, forceSync: true }),
+        ),
       ).resolves.not.toThrow();
+    });
+
+    it('skips a concurrent run when mediation lock is already held', async () => {
+      let lockTaken = false;
+      redlockService.acquire.mockImplementation(async () => {
+        if (lockTaken) {
+          return null;
+        }
+        lockTaken = true;
+        return { release: jest.fn().mockResolvedValue(undefined) };
+      });
+
+      redlockService.release.mockImplementation(async () => {
+        lockTaken = false;
+      });
+
+      groupRepo.findOne.mockResolvedValue({ ...activeGroup });
+      stellarService.getGroupState.mockImplementation(
+        async () =>
+          await new Promise((resolve) =>
+            setTimeout(
+              () => resolve({ current_round: 2, status: 'ACTIVE' }),
+              20,
+            ),
+          ),
+      );
+
+      const result = await Promise.all([
+        processor.process(makeJob(JOB_NAMES.SYNC_GROUP_STATE, jobData)),
+        processor.process(makeJob(JOB_NAMES.SYNC_GROUP_STATE, jobData)),
+      ]);
+
+      expect(result).toEqual(expect.arrayContaining([{ status: 'SKIPPED' }]));
+      expect(groupRepo.save).toHaveBeenCalledTimes(1);
     });
   });
 
@@ -120,24 +208,34 @@ describe('GroupSyncProcessor', () => {
         { id: 'g1', contractAddress: '0xc1' },
         { id: 'g2', contractAddress: '0xc2' },
       ];
-      groupRepo.find
-        .mockResolvedValueOnce(groups)
-        .mockResolvedValueOnce([]); // second page empty → stop
+      groupRepo.find.mockResolvedValueOnce(groups).mockResolvedValueOnce([]); // second page empty → stop
 
-      await processor.process(makeJob(JOB_NAMES.SYNC_ALL_GROUPS, { chainId: 8453, batchSize: 50 }));
+      await processor.process(
+        makeJob(JOB_NAMES.SYNC_ALL_GROUPS, { chainId: 8453, batchSize: 50 }),
+      );
 
       expect(groupSyncQueue.addBulk).toHaveBeenCalledWith(
         expect.arrayContaining([
-          expect.objectContaining({ name: JOB_NAMES.SYNC_GROUP_STATE, data: expect.objectContaining({ groupId: 'g1' }) }),
-          expect.objectContaining({ name: JOB_NAMES.SYNC_GROUP_STATE, data: expect.objectContaining({ groupId: 'g2' }) }),
+          expect.objectContaining({
+            name: JOB_NAMES.SYNC_GROUP_STATE,
+            data: expect.objectContaining({ groupId: 'g1' }),
+          }),
+          expect.objectContaining({
+            name: JOB_NAMES.SYNC_GROUP_STATE,
+            data: expect.objectContaining({ groupId: 'g2' }),
+          }),
         ]),
       );
     });
 
     it('skips groups without a contractAddress', async () => {
-      groupRepo.find.mockResolvedValueOnce([{ id: 'g1', contractAddress: null }]).mockResolvedValueOnce([]);
+      groupRepo.find
+        .mockResolvedValueOnce([{ id: 'g1', contractAddress: null }])
+        .mockResolvedValueOnce([]);
 
-      await processor.process(makeJob(JOB_NAMES.SYNC_ALL_GROUPS, { chainId: 1 }));
+      await processor.process(
+        makeJob(JOB_NAMES.SYNC_ALL_GROUPS, { chainId: 1 }),
+      );
 
       expect(groupSyncQueue.addBulk).not.toHaveBeenCalled();
     });
@@ -145,7 +243,9 @@ describe('GroupSyncProcessor', () => {
     it('uses default batchSize of 50', async () => {
       groupRepo.find.mockResolvedValue([]);
 
-      await processor.process(makeJob(JOB_NAMES.SYNC_ALL_GROUPS, { chainId: 1 }));
+      await processor.process(
+        makeJob(JOB_NAMES.SYNC_ALL_GROUPS, { chainId: 1 }),
+      );
 
       expect(groupRepo.find).toHaveBeenCalledWith(
         expect.objectContaining({ take: 50 }),
@@ -156,24 +256,34 @@ describe('GroupSyncProcessor', () => {
   // ── Unknown job ────────────────────────────────────────────────────────────
 
   it('throws for unknown job name', async () => {
-    await expect(processor.process(makeJob('unknown-sync', {}))).rejects.toThrow(
-      'Unknown group-sync job type: unknown-sync',
-    );
+    await expect(
+      processor.process(makeJob('unknown-sync', {})),
+    ).rejects.toThrow('Unknown group-sync job type: unknown-sync');
   });
 
   // ── DLQ handling ───────────────────────────────────────────────────────────
 
   describe('onFailed()', () => {
     it('does NOT move to DLQ when retries remain', async () => {
-      const job = makeJob(JOB_NAMES.SYNC_GROUP_STATE, {}, { attemptsMade: 1, opts: { attempts: 3 } } as any);
+      const job = makeJob(JOB_NAMES.SYNC_GROUP_STATE, {}, {
+        attemptsMade: 1,
+        opts: { attempts: 3 },
+      } as any);
       await processor.onFailed(job, new Error('contract reverted'));
       expect(deadLetterService.moveToDeadLetter).not.toHaveBeenCalled();
     });
 
     it('moves to DLQ after max retries exhausted', async () => {
-      const job = makeJob(JOB_NAMES.SYNC_GROUP_STATE, {}, { attemptsMade: 3, opts: { attempts: 3 } } as any);
+      const job = makeJob(JOB_NAMES.SYNC_GROUP_STATE, {}, {
+        attemptsMade: 3,
+        opts: { attempts: 3 },
+      } as any);
       await processor.onFailed(job, new Error('permanent failure'));
-      expect(deadLetterService.moveToDeadLetter).toHaveBeenCalledWith(job, expect.any(Error), QUEUE_NAMES.GROUP_SYNC);
+      expect(deadLetterService.moveToDeadLetter).toHaveBeenCalledWith(
+        job,
+        expect.any(Error),
+        QUEUE_NAMES.GROUP_SYNC,
+      );
     });
   });
 });

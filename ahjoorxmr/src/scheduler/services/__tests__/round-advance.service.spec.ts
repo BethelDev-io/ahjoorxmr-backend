@@ -33,7 +33,7 @@ const makeGroup = (overrides: Partial<Group> = {}): Group =>
     createdAt: new Date(NOW.getTime() - 2 * 3600 * 1000),
     memberships: [],
     ...overrides,
-  } as Group);
+  }) as Group;
 
 /** Build a minimal Membership */
 const makeMember = (overrides: Partial<Membership> = {}): Membership =>
@@ -51,7 +51,7 @@ const makeMember = (overrides: Partial<Membership> = {}): Membership =>
     createdAt: new Date(),
     updatedAt: new Date(),
     ...overrides,
-  } as Membership);
+  }) as Membership;
 
 describe('RoundAdvanceService', () => {
   let service: RoundAdvanceService;
@@ -64,7 +64,10 @@ describe('RoundAdvanceService', () => {
     jest.useFakeTimers();
     jest.setSystemTime(NOW);
 
-    groupRepo = { find: jest.fn(), save: jest.fn().mockImplementation((g) => Promise.resolve(g)) };
+    groupRepo = {
+      find: jest.fn(),
+      save: jest.fn().mockImplementation((g) => Promise.resolve(g)),
+    };
     membershipRepo = { save: jest.fn().mockResolvedValue([]) };
     notificationsService = { notifyBatch: jest.fn().mockResolvedValue([]) };
     configService = {
@@ -143,7 +146,10 @@ describe('RoundAdvanceService', () => {
     });
 
     it('sends payment reminders when members have not paid', async () => {
-      const unpaid = makeMember({ userId: 'user-1', hasPaidCurrentRound: false });
+      const unpaid = makeMember({
+        userId: 'user-1',
+        hasPaidCurrentRound: false,
+      });
       const group = makeGroup({ memberships: [unpaid] });
       groupRepo.find.mockResolvedValue([group]);
 
@@ -178,13 +184,20 @@ describe('RoundAdvanceService', () => {
 
     it('marks group COMPLETED when advancing past totalRounds', async () => {
       const member = makeMember({ hasPaidCurrentRound: true });
-      const group = makeGroup({ currentRound: 5, totalRounds: 5, memberships: [member] });
+      const group = makeGroup({
+        currentRound: 5,
+        totalRounds: 5,
+        memberships: [member],
+      });
       groupRepo.find.mockResolvedValue([group]);
 
       await service.processDeadlinedGroups();
 
       expect(groupRepo.save).toHaveBeenCalledWith(
-        expect.objectContaining({ status: GroupStatus.COMPLETED, currentRound: 6 }),
+        expect.objectContaining({
+          status: GroupStatus.COMPLETED,
+          currentRound: 6,
+        }),
       );
       // No ROUND_OPENED notifications for completed group
       expect(notificationsService.notifyBatch).not.toHaveBeenCalled();
@@ -203,8 +216,16 @@ describe('RoundAdvanceService', () => {
     });
 
     it('resets hasPaidCurrentRound for all active members on advance', async () => {
-      const m1 = makeMember({ id: 'mem-1', userId: 'user-1', hasPaidCurrentRound: true });
-      const m2 = makeMember({ id: 'mem-2', userId: 'user-2', hasPaidCurrentRound: true });
+      const m1 = makeMember({
+        id: 'mem-1',
+        userId: 'user-1',
+        hasPaidCurrentRound: true,
+      });
+      const m2 = makeMember({
+        id: 'mem-2',
+        userId: 'user-2',
+        hasPaidCurrentRound: true,
+      });
       const group = makeGroup({ memberships: [m1, m2] });
       groupRepo.find.mockResolvedValue([group]);
 
@@ -219,8 +240,16 @@ describe('RoundAdvanceService', () => {
     });
 
     it('sends ROUND_OPENED notifications to all active members on advance', async () => {
-      const m1 = makeMember({ id: 'mem-1', userId: 'user-1', hasPaidCurrentRound: true });
-      const m2 = makeMember({ id: 'mem-2', userId: 'user-2', hasPaidCurrentRound: true });
+      const m1 = makeMember({
+        id: 'mem-1',
+        userId: 'user-1',
+        hasPaidCurrentRound: true,
+      });
+      const m2 = makeMember({
+        id: 'mem-2',
+        userId: 'user-2',
+        hasPaidCurrentRound: true,
+      });
       const group = makeGroup({ memberships: [m1, m2] });
       groupRepo.find.mockResolvedValue([group]);
 
@@ -228,15 +257,28 @@ describe('RoundAdvanceService', () => {
 
       expect(notificationsService.notifyBatch).toHaveBeenCalledWith(
         expect.arrayContaining([
-          expect.objectContaining({ userId: 'user-1', type: NotificationType.ROUND_OPENED }),
-          expect.objectContaining({ userId: 'user-2', type: NotificationType.ROUND_OPENED }),
+          expect.objectContaining({
+            userId: 'user-1',
+            type: NotificationType.ROUND_OPENED,
+          }),
+          expect.objectContaining({
+            userId: 'user-2',
+            type: NotificationType.ROUND_OPENED,
+          }),
         ]),
       );
     });
 
     it('uses idempotency keys to prevent duplicate notifications', async () => {
-      const member = makeMember({ userId: 'user-1', hasPaidCurrentRound: false });
-      const group = makeGroup({ id: 'group-1', currentRound: 2, memberships: [member] });
+      const member = makeMember({
+        userId: 'user-1',
+        hasPaidCurrentRound: false,
+      });
+      const group = makeGroup({
+        id: 'group-1',
+        currentRound: 2,
+        memberships: [member],
+      });
       groupRepo.find.mockResolvedValue([group]);
 
       await service.processDeadlinedGroups();
@@ -275,7 +317,10 @@ describe('RoundAdvanceService', () => {
     it('counts errors and continues processing other groups', async () => {
       const failingGroup = makeGroup({ id: 'group-fail', memberships: [] });
       const goodMember = makeMember({ hasPaidCurrentRound: true });
-      const goodGroup = makeGroup({ id: 'group-good', memberships: [goodMember] });
+      const goodGroup = makeGroup({
+        id: 'group-good',
+        memberships: [goodMember],
+      });
 
       groupRepo.find.mockResolvedValue([failingGroup, goodGroup]);
       // Make save throw for the first group
@@ -310,8 +355,18 @@ describe('RoundAdvanceService', () => {
     });
 
     it('ignores non-active memberships when checking payments', async () => {
-      const activePaid = makeMember({ id: 'mem-1', userId: 'user-1', hasPaidCurrentRound: true, status: MembershipStatus.ACTIVE });
-      const suspendedUnpaid = makeMember({ id: 'mem-2', userId: 'user-2', hasPaidCurrentRound: false, status: MembershipStatus.SUSPENDED });
+      const activePaid = makeMember({
+        id: 'mem-1',
+        userId: 'user-1',
+        hasPaidCurrentRound: true,
+        status: MembershipStatus.ACTIVE,
+      });
+      const suspendedUnpaid = makeMember({
+        id: 'mem-2',
+        userId: 'user-2',
+        hasPaidCurrentRound: false,
+        status: MembershipStatus.SUSPENDED,
+      });
       const group = makeGroup({ memberships: [activePaid, suspendedUnpaid] });
       groupRepo.find.mockResolvedValue([group]);
 

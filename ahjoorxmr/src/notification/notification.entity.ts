@@ -9,7 +9,10 @@ import { NotificationType } from './notification-type.enum';
 
 @Entity('notifications')
 @Index(['userId', 'createdAt'])
-@Index('IDX_notifications_idempotencyKey', ['idempotencyKey'], { unique: true, where: '"idempotencyKey" IS NOT NULL' })
+@Index('IDX_notifications_idempotencyKey', ['idempotencyKey'], {
+  unique: true,
+  where: '"idempotencyKey" IS NOT NULL',
+})
 export class Notification {
   @PrimaryGeneratedColumn('uuid')
   id: string;

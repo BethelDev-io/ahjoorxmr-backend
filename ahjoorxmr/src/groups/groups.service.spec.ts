@@ -130,7 +130,9 @@ describe('GroupsService', () => {
 
       jest.spyOn(groupRepository, 'findOne').mockResolvedValue(group);
       jest.spyOn(membershipRepository, 'find').mockResolvedValue(members);
-      jest.spyOn(membershipRepository, 'save').mockImplementation((m) => Promise.resolve(m));
+      jest
+        .spyOn(membershipRepository, 'save')
+        .mockImplementation((m) => Promise.resolve(m));
       jest.spyOn(groupRepository, 'save').mockResolvedValue({
         ...group,
         status: 'ACTIVE',

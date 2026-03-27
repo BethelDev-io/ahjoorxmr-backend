@@ -42,7 +42,9 @@ describe('NotificationsService - Batch Operations', () => {
     }).compile();
 
     service = module.get<NotificationsService>(NotificationsService);
-    repository = module.get<Repository<Notification>>(getRepositoryToken(Notification));
+    repository = module.get<Repository<Notification>>(
+      getRepositoryToken(Notification),
+    );
 
     jest.clearAllMocks();
   });
@@ -119,9 +121,11 @@ describe('NotificationsService - Batch Operations', () => {
         select: jest.fn().mockReturnThis(),
         where: jest.fn().mockReturnThis(),
         andWhere: jest.fn().mockReturnThis(),
-        getRawMany: jest.fn().mockResolvedValue([
-          { n_idempotencyKey: 'group-1-1-user-1-ROUND_OPENED' },
-        ]),
+        getRawMany: jest
+          .fn()
+          .mockResolvedValue([
+            { n_idempotencyKey: 'group-1-1-user-1-ROUND_OPENED' },
+          ]),
       }));
 
       const result = await service.notifyBatch(notifications);
@@ -187,7 +191,10 @@ describe('NotificationsService - Batch Operations', () => {
 
       expect(mockRepository.save).toHaveBeenCalledWith(
         expect.arrayContaining([
-          expect.objectContaining({ userId: 'user-1', idempotencyKey: 'group-1-1-user-1-ROUND_OPENED' }),
+          expect.objectContaining({
+            userId: 'user-1',
+            idempotencyKey: 'group-1-1-user-1-ROUND_OPENED',
+          }),
           expect.objectContaining({ userId: 'user-2', idempotencyKey: null }),
         ]),
       );
@@ -204,7 +211,9 @@ describe('NotificationsService - Batch Operations', () => {
         idempotencyKey: 'group-1-1-user-1-ROUND_OPENED',
       };
 
-      mockRepository.save = jest.fn().mockResolvedValue({ id: 'notif-1', ...dto });
+      mockRepository.save = jest
+        .fn()
+        .mockResolvedValue({ id: 'notif-1', ...dto });
 
       await service.notify(dto);
 

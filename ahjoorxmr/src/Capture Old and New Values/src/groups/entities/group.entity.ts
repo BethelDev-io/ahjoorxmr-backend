@@ -4,11 +4,11 @@ import {
   Column,
   CreateDateColumn,
   UpdateDateColumn,
-} from "typeorm";
+} from 'typeorm';
 
-@Entity("groups")
+@Entity('groups')
 export class Group {
-  @PrimaryGeneratedColumn("uuid")
+  @PrimaryGeneratedColumn('uuid')
   id: string;
 
   @Column()
@@ -17,10 +17,10 @@ export class Group {
   @Column({ nullable: true })
   description: string;
 
-  @Column({ default: "active" })
-  status: "active" | "inactive";
+  @Column({ default: 'active' })
+  status: 'active' | 'inactive';
 
-  @Column({ default: "[]" })
+  @Column({ default: '[]' })
   permissions: string;
 
   @CreateDateColumn()

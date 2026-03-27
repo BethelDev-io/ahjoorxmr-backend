@@ -20,7 +20,7 @@ const mockUser = (overrides: Partial<User> = {}): User =>
     walletAddress: 'GTEST',
     kycStatus: null,
     ...overrides,
-  } as User);
+  }) as User;
 
 const mockDoc = (overrides: Partial<KycDocument> = {}): KycDocument =>
   ({
@@ -35,9 +35,11 @@ const mockDoc = (overrides: Partial<KycDocument> = {}): KycDocument =>
     createdAt: new Date('2024-01-01'),
     updatedAt: new Date('2024-01-01'),
     ...overrides,
-  } as KycDocument);
+  }) as KycDocument;
 
-const makeFile = (overrides: Partial<Express.Multer.File> = {}): Express.Multer.File =>
+const makeFile = (
+  overrides: Partial<Express.Multer.File> = {},
+): Express.Multer.File =>
   ({
     fieldname: 'document',
     originalname: 'passport.pdf',
@@ -45,7 +47,7 @@ const makeFile = (overrides: Partial<Express.Multer.File> = {}): Express.Multer.
     size: 1024,
     buffer: Buffer.from('fake-pdf'),
     ...overrides,
-  } as Express.Multer.File);
+  }) as Express.Multer.File;
 
 type MockRepo<T> = Partial<Record<keyof T, jest.Mock>>;
 
@@ -94,9 +96,11 @@ describe('KycService', () => {
     service = module.get<KycService>(KycService);
 
     // Stub local upload to avoid real FS
-    jest.spyOn(service as any, 'uploadToLocal').mockResolvedValue(
-      'http://localhost:3000/uploads/kyc/user-uuid-1/file.pdf',
-    );
+    jest
+      .spyOn(service as any, 'uploadToLocal')
+      .mockResolvedValue(
+        'http://localhost:3000/uploads/kyc/user-uuid-1/file.pdf',
+      );
   });
 
   afterEach(() => jest.clearAllMocks());
@@ -107,10 +111,10 @@ describe('KycService', () => {
       const user = mockUser();
       const doc = mockDoc();
 
-      userRepo.findOne!.mockResolvedValue(user);
-      kycDocRepo.create!.mockReturnValue(doc);
-      kycDocRepo.save!.mockResolvedValue(doc);
-      userRepo.update!.mockResolvedValue({});
+      userRepo.findOne.mockResolvedValue(user);
+      kycDocRepo.create.mockReturnValue(doc);
+      kycDocRepo.save.mockResolvedValue(doc);
+      userRepo.update.mockResolvedValue({});
 
       const result = await service.uploadDocument('user-uuid-1', file);
 
@@ -126,26 +130,33 @@ describe('KycService', () => {
 
     it('should upload a JPEG successfully', async () => {
       const file = makeFile({ originalname: 'id.jpg', mimetype: 'image/jpeg' });
-      userRepo.findOne!.mockResolvedValue(mockUser());
-      kycDocRepo.create!.mockReturnValue(mockDoc({ mimeType: 'image/jpeg' }));
-      kycDocRepo.save!.mockResolvedValue(mockDoc({ mimeType: 'image/jpeg' }));
-      userRepo.update!.mockResolvedValue({});
+      userRepo.findOne.mockResolvedValue(mockUser());
+      kycDocRepo.create.mockReturnValue(mockDoc({ mimeType: 'image/jpeg' }));
+      kycDocRepo.save.mockResolvedValue(mockDoc({ mimeType: 'image/jpeg' }));
+      userRepo.update.mockResolvedValue({});
 
-      await expect(service.uploadDocument('user-uuid-1', file)).resolves.toBeDefined();
+      await expect(
+        service.uploadDocument('user-uuid-1', file),
+      ).resolves.toBeDefined();
     });
 
     it('should upload a PNG successfully', async () => {
       const file = makeFile({ originalname: 'id.png', mimetype: 'image/png' });
-      userRepo.findOne!.mockResolvedValue(mockUser());
-      kycDocRepo.create!.mockReturnValue(mockDoc({ mimeType: 'image/png' }));
-      kycDocRepo.save!.mockResolvedValue(mockDoc({ mimeType: 'image/png' }));
-      userRepo.update!.mockResolvedValue({});
+      userRepo.findOne.mockResolvedValue(mockUser());
+      kycDocRepo.create.mockReturnValue(mockDoc({ mimeType: 'image/png' }));
+      kycDocRepo.save.mockResolvedValue(mockDoc({ mimeType: 'image/png' }));
+      userRepo.update.mockResolvedValue({});
 
-      await expect(service.uploadDocument('user-uuid-1', file)).resolves.toBeDefined();
+      await expect(
+        service.uploadDocument('user-uuid-1', file),
+      ).resolves.toBeDefined();
     });
 
     it('should throw UnsupportedMediaTypeException for disallowed MIME type', async () => {
-      const file = makeFile({ mimetype: 'image/gif', originalname: 'anim.gif' });
+      const file = makeFile({
+        mimetype: 'image/gif',
+        originalname: 'anim.gif',
+      });
 
       await expect(service.uploadDocument('user-uuid-1', file)).rejects.toThrow(
         UnsupportedMediaTypeException,
@@ -154,7 +165,10 @@ describe('KycService', () => {
     });
 
     it('should throw UnsupportedMediaTypeException for text/plain', async () => {
-      const file = makeFile({ mimetype: 'text/plain', originalname: 'doc.txt' });
+      const file = makeFile({
+        mimetype: 'text/plain',
+        originalname: 'doc.txt',
+      });
 
       await expect(service.uploadDocument('user-uuid-1', file)).rejects.toThrow(
         UnsupportedMediaTypeException,
@@ -172,16 +186,18 @@ describe('KycService', () => {
 
     it('should allow file exactly at 5 MB boundary', async () => {
       const file = makeFile({ size: 5 * 1024 * 1024 });
-      userRepo.findOne!.mockResolvedValue(mockUser());
-      kycDocRepo.create!.mockReturnValue(mockDoc());
-      kycDocRepo.save!.mockResolvedValue(mockDoc());
-      userRepo.update!.mockResolvedValue({});
+      userRepo.findOne.mockResolvedValue(mockUser());
+      kycDocRepo.create.mockReturnValue(mockDoc());
+      kycDocRepo.save.mockResolvedValue(mockDoc());
+      userRepo.update.mockResolvedValue({});
 
-      await expect(service.uploadDocument('user-uuid-1', file)).resolves.toBeDefined();
+      await expect(
+        service.uploadDocument('user-uuid-1', file),
+      ).resolves.toBeDefined();
     });
 
     it('should throw NotFoundException when user does not exist', async () => {
-      userRepo.findOne!.mockResolvedValue(null);
+      userRepo.findOne.mockResolvedValue(null);
 
       await expect(
         service.uploadDocument('non-existent', makeFile()),
@@ -189,10 +205,10 @@ describe('KycService', () => {
     });
 
     it('should set kycStatus to PENDING after upload', async () => {
-      userRepo.findOne!.mockResolvedValue(mockUser());
-      kycDocRepo.create!.mockReturnValue(mockDoc());
-      kycDocRepo.save!.mockResolvedValue(mockDoc());
-      userRepo.update!.mockResolvedValue({});
+      userRepo.findOne.mockResolvedValue(mockUser());
+      kycDocRepo.create.mockReturnValue(mockDoc());
+      kycDocRepo.save.mockResolvedValue(mockDoc());
+      userRepo.update.mockResolvedValue({});
 
       await service.uploadDocument('user-uuid-1', makeFile());
 
@@ -207,8 +223,8 @@ describe('KycService', () => {
       const user = mockUser({ kycStatus: KycStatus.PENDING });
       const doc = mockDoc();
 
-      userRepo.findOne!.mockResolvedValue(user);
-      kycDocRepo.findOne!.mockResolvedValue(doc);
+      userRepo.findOne.mockResolvedValue(user);
+      kycDocRepo.findOne.mockResolvedValue(doc);
 
       const result = await service.getLatestDocument('user-uuid-1');
 
@@ -217,7 +233,7 @@ describe('KycService', () => {
     });
 
     it('should throw NotFoundException when user does not exist', async () => {
-      userRepo.findOne!.mockResolvedValue(null);
+      userRepo.findOne.mockResolvedValue(null);
 
       await expect(service.getLatestDocument('non-existent')).rejects.toThrow(
         NotFoundException,
@@ -225,8 +241,8 @@ describe('KycService', () => {
     });
 
     it('should throw NotFoundException when no document exists', async () => {
-      userRepo.findOne!.mockResolvedValue(mockUser());
-      kycDocRepo.findOne!.mockResolvedValue(null);
+      userRepo.findOne.mockResolvedValue(mockUser());
+      kycDocRepo.findOne.mockResolvedValue(null);
 
       await expect(service.getLatestDocument('user-uuid-1')).rejects.toThrow(
         NotFoundException,

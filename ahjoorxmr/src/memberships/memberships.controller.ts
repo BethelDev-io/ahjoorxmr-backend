@@ -240,7 +240,8 @@ export class MembershipsController {
   @Get(':id/current-recipient')
   @ApiOperation({
     summary: 'Get current round payout recipient',
-    description: 'Returns the membership scheduled to receive the payout for the current round',
+    description:
+      'Returns the membership scheduled to receive the payout for the current round',
   })
   @ApiParam({ name: 'id', description: 'Group UUID', format: 'uuid' })
   @ApiResponse({
@@ -261,7 +262,8 @@ export class MembershipsController {
   async getCurrentRecipient(
     @Param('id', ParseUUIDPipe) groupId: string,
   ): Promise<MembershipResponseDto> {
-    const membership = await this.membershipsService.getCurrentRecipient(groupId);
+    const membership =
+      await this.membershipsService.getCurrentRecipient(groupId);
 
     return {
       id: membership.id,

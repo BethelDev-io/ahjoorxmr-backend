@@ -63,7 +63,9 @@ export class QueueAdminController {
 
   @Post('retry')
   @HttpCode(HttpStatus.OK)
-  @ApiOperation({ summary: 'Retry a failed job from dead letter queue (admin only)' })
+  @ApiOperation({
+    summary: 'Retry a failed job from dead letter queue (admin only)',
+  })
   @ApiResponse({
     status: 200,
     description: 'Job retry initiated successfully',

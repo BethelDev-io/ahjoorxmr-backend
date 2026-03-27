@@ -47,7 +47,9 @@ export class GroupStatusService {
         }
       }
 
-      this.logger.log(`Fallback round check: advanced ${advancedCount} group(s)`);
+      this.logger.log(
+        `Fallback round check: advanced ${advancedCount} group(s)`,
+      );
       return advancedCount;
     } catch (error) {
       this.logger.error('Failed during stalled-round fallback check:', error);

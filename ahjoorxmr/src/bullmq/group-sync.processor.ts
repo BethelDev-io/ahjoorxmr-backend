@@ -1,15 +1,25 @@
 import { Processor, WorkerHost, OnWorkerEvent } from '@nestjs/bullmq';
 import { Logger } from '@nestjs/common';
 import { InjectQueue } from '@nestjs/bullmq';
+import { ConfigService } from '@nestjs/config';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Job, Queue } from 'bullmq';
-import { QUEUE_NAMES, JOB_NAMES, BACKOFF_DELAYS, RETRY_CONFIG } from './queue.constants';
-import { SyncGroupStateJobData, SyncAllGroupsJobData } from './queue.interfaces';
+import {
+  QUEUE_NAMES,
+  JOB_NAMES,
+  BACKOFF_DELAYS,
+  RETRY_CONFIG,
+} from './queue.constants';
+import {
+  SyncGroupStateJobData,
+  SyncAllGroupsJobData,
+} from './queue.interfaces';
 import { DeadLetterService } from './dead-letter.service';
 import { StellarService } from '../stellar/stellar.service';
 import { Group } from '../groups/entities/group.entity';
 import { GroupStatus } from '../groups/entities/group-status.enum';
+import { RedlockService } from '../common/redis/redlock.service';
 
 @Processor(QUEUE_NAMES.GROUP_SYNC, { concurrency: 2 })
 export class GroupSyncProcessor extends WorkerHost {
@@ -18,6 +28,8 @@ export class GroupSyncProcessor extends WorkerHost {
   constructor(
     private readonly deadLetterService: DeadLetterService,
     private readonly stellarService: StellarService,
+    private readonly redlockService: RedlockService,
+    private readonly configService: ConfigService,
     @InjectRepository(Group)
     private readonly groupRepository: Repository<Group>,
     @InjectQueue(QUEUE_NAMES.GROUP_SYNC)
@@ -39,54 +51,104 @@ export class GroupSyncProcessor extends WorkerHost {
     }
   }
 
-  private async handleSyncGroupState(job: Job<SyncGroupStateJobData>): Promise<void> {
+  private async handleSyncGroupState(
+    job: Job<SyncGroupStateJobData>,
+  ): Promise<{ status: 'PROCESSED' | 'SKIPPED' }> {
     const { groupId, contractAddress, forceSync } = job.data;
-    this.logger.log(`Syncing group state groupId=${groupId} contract=${contractAddress} force=${forceSync ?? false}`);
+    this.logger.log(
+      `Syncing group state groupId=${groupId} contract=${contractAddress} force=${forceSync ?? false}`,
+    );
 
-    const group = await this.groupRepository.findOne({ where: { id: groupId } });
-    if (!group) {
-      this.logger.warn(`Group ${groupId} not found, skipping sync`);
-      return;
+    const maxExpectedDurationMs = Number(
+      this.configService.get<string>(
+        'MEDIATION_MAX_EXPECTED_DURATION_MS',
+        '25000',
+      ),
+    );
+    const lockTtlMs = Number(
+      this.configService.get<string>(
+        'MEDIATION_LOCK_TTL_MS',
+        String(Math.ceil(maxExpectedDurationMs * 1.2)),
+      ),
+    );
+
+    const lockKey = `mediation:group:${groupId}`;
+    const lock = await this.redlockService.acquire(lockKey, lockTtlMs);
+    if (!lock) {
+      this.logger.warn(
+        `Mediation lock unavailable for group ${groupId}; marking job as SKIPPED`,
+      );
+      return { status: 'SKIPPED' };
     }
 
-    const state = (await this.stellarService.getGroupState(contractAddress)) as Record<string, unknown> | null;
-    if (!state) {
-      this.logger.warn(`No state returned for contract=${contractAddress}`);
-      return;
-    }
+    try {
+      const group = await this.groupRepository.findOne({
+        where: { id: groupId },
+      });
+      if (!group) {
+        this.logger.warn(`Group ${groupId} not found, skipping sync`);
+        return { status: 'PROCESSED' };
+      }
 
-    let changed = false;
+      const state = (await this.stellarService.getGroupState(
+        contractAddress,
+      )) as Record<string, unknown> | null;
+      if (!state) {
+        this.logger.warn(`No state returned for contract=${contractAddress}`);
+        return { status: 'PROCESSED' };
+      }
 
-    const onChainRound = typeof state['current_round'] === 'number' ? state['current_round'] : null;
-    if (onChainRound !== null && onChainRound !== group.currentRound) {
-      this.logger.log(`Group ${groupId} round ${group.currentRound} → ${onChainRound}`);
-      group.currentRound = onChainRound;
-      changed = true;
-    }
+      let changed = false;
 
-    const onChainStatus = typeof state['status'] === 'string' ? (state['status'] as string).toUpperCase() : null;
-    if (
-      onChainStatus &&
-      onChainStatus !== group.status &&
-      Object.values(GroupStatus).includes(onChainStatus as GroupStatus)
-    ) {
-      this.logger.log(`Group ${groupId} status ${group.status} → ${onChainStatus}`);
-      group.status = onChainStatus as GroupStatus;
-      changed = true;
-    }
+      const onChainRound =
+        typeof state['current_round'] === 'number'
+          ? state['current_round']
+          : null;
+      if (onChainRound !== null && onChainRound !== group.currentRound) {
+        this.logger.log(
+          `Group ${groupId} round ${group.currentRound} → ${onChainRound}`,
+        );
+        group.currentRound = onChainRound;
+        changed = true;
+      }
 
-    if (changed) {
-      group.staleAt = null;
-      await this.groupRepository.save(group);
-      this.logger.log(`Group ${groupId} synced successfully`);
-    } else {
-      this.logger.debug(`Group ${groupId} already in sync`);
+      const onChainStatus =
+        typeof state['status'] === 'string'
+          ? state['status'].toUpperCase()
+          : null;
+      if (
+        onChainStatus &&
+        onChainStatus !== group.status &&
+        Object.values(GroupStatus).includes(onChainStatus as GroupStatus)
+      ) {
+        this.logger.log(
+          `Group ${groupId} status ${group.status} → ${onChainStatus}`,
+        );
+        group.status = onChainStatus as GroupStatus;
+        changed = true;
+      }
+
+      if (changed) {
+        group.staleAt = null;
+        await this.groupRepository.save(group);
+        this.logger.log(`Group ${groupId} synced successfully`);
+      } else {
+        this.logger.debug(`Group ${groupId} already in sync`);
+      }
+
+      return { status: 'PROCESSED' };
+    } finally {
+      await this.redlockService.release(lock);
     }
   }
 
-  private async handleSyncAllGroups(job: Job<SyncAllGroupsJobData>): Promise<void> {
+  private async handleSyncAllGroups(
+    job: Job<SyncAllGroupsJobData>,
+  ): Promise<void> {
     const { batchSize = 50 } = job.data;
-    this.logger.log(`Paginated sync of all ACTIVE groups batchSize=${batchSize}`);
+    this.logger.log(
+      `Paginated sync of all ACTIVE groups batchSize=${batchSize}`,
+    );
 
     let page = 0;
     let dispatched = 0;
@@ -105,8 +167,15 @@ export class GroupSyncProcessor extends WorkerHost {
         .filter((g) => g.contractAddress)
         .map((g) => ({
           name: JOB_NAMES.SYNC_GROUP_STATE,
-          data: { groupId: g.id, contractAddress: g.contractAddress!, chainId: job.data.chainId } as SyncGroupStateJobData,
-          opts: { attempts: RETRY_CONFIG.attempts, backoff: RETRY_CONFIG.backoff },
+          data: {
+            groupId: g.id,
+            contractAddress: g.contractAddress!,
+            chainId: job.data.chainId,
+          } as SyncGroupStateJobData,
+          opts: {
+            attempts: RETRY_CONFIG.attempts,
+            backoff: RETRY_CONFIG.backoff,
+          },
         }));
 
       if (jobs.length > 0) {
@@ -138,7 +207,11 @@ export class GroupSyncProcessor extends WorkerHost {
       this.logger.error(
         `Group-sync job [${job.name}] id=${job.id} exhausted all retries → moving to dead-letter queue`,
       );
-      await this.deadLetterService.moveToDeadLetter(job, error, QUEUE_NAMES.GROUP_SYNC);
+      await this.deadLetterService.moveToDeadLetter(
+        job,
+        error,
+        QUEUE_NAMES.GROUP_SYNC,
+      );
     }
   }
 
@@ -149,5 +222,7 @@ export class GroupSyncProcessor extends WorkerHost {
 }
 
 export function groupSyncBackoffStrategy(attemptsMade: number): number {
-  return BACKOFF_DELAYS[attemptsMade] ?? BACKOFF_DELAYS[BACKOFF_DELAYS.length - 1];
+  return (
+    BACKOFF_DELAYS[attemptsMade] ?? BACKOFF_DELAYS[BACKOFF_DELAYS.length - 1]
+  );
 }

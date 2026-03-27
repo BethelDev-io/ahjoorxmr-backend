@@ -20,11 +20,17 @@ describe('CorrelationIdMiddleware', () => {
   });
 
   it('should generate a correlation ID when not provided', () => {
-    middleware.use(mockRequest as Request, mockResponse as Response, nextFunction);
+    middleware.use(
+      mockRequest as Request,
+      mockResponse as Response,
+      nextFunction,
+    );
 
     expect(mockResponse.setHeader).toHaveBeenCalledWith(
       'X-Correlation-Id',
-      expect.stringMatching(/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i),
+      expect.stringMatching(
+        /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i,
+      ),
     );
     expect(nextFunction).toHaveBeenCalled();
   });
@@ -33,9 +39,16 @@ describe('CorrelationIdMiddleware', () => {
     const existingId = '12345678-1234-4234-8234-123456789012';
     mockRequest.headers = { 'x-correlation-id': existingId };
 
-    middleware.use(mockRequest as Request, mockResponse as Response, nextFunction);
+    middleware.use(
+      mockRequest as Request,
+      mockResponse as Response,
+      nextFunction,
+    );
 
-    expect(mockResponse.setHeader).toHaveBeenCalledWith('X-Correlation-Id', existingId);
+    expect(mockResponse.setHeader).toHaveBeenCalledWith(
+      'X-Correlation-Id',
+      existingId,
+    );
     expect(nextFunction).toHaveBeenCalled();
   });
 

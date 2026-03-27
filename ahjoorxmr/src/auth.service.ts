@@ -73,7 +73,10 @@ export class AuthService {
     }
 
     // 2. Validate challenge exists, is not expired, and matches exactly
-    const challengeValid = this.challengeStore.consume(walletAddress, challenge);
+    const challengeValid = this.challengeStore.consume(
+      walletAddress,
+      challenge,
+    );
     if (!challengeValid) {
       throw new UnauthorizedException(
         'Challenge is invalid, expired, or already used',
@@ -87,9 +90,7 @@ export class AuthService {
       signature,
     );
     if (!signatureValid) {
-      this.logger.warn(
-        `Invalid signature attempt for wallet ${walletAddress}`,
-      );
+      this.logger.warn(`Invalid signature attempt for wallet ${walletAddress}`);
       throw new UnauthorizedException('Invalid signature');
     }
 
@@ -137,7 +138,9 @@ export class AuthService {
         where: { walletAddress: dto.walletAddress },
       });
       if (walletTaken) {
-        throw new ConflictException('Wallet address already linked to an account');
+        throw new ConflictException(
+          'Wallet address already linked to an account',
+        );
       }
     }
 

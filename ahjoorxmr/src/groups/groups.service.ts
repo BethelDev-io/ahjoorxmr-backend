@@ -54,12 +54,11 @@ export class GroupsService {
     );
 
     try {
-      const maxMembers = createGroupDto.maxMembers ?? createGroupDto.totalRounds;
+      const maxMembers =
+        createGroupDto.maxMembers ?? createGroupDto.totalRounds;
 
       if (maxMembers !== createGroupDto.totalRounds) {
-        throw new BadRequestException(
-          'maxMembers must equal totalRounds',
-        );
+        throw new BadRequestException('maxMembers must equal totalRounds');
       }
 
       if (createGroupDto.minMembers > maxMembers) {

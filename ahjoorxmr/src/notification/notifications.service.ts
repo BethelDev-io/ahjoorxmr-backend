@@ -9,7 +9,11 @@ import { Repository } from 'typeorm';
 import { MailerService } from '@nestjs-modules/mailer';
 import { Notification } from './notification.entity';
 import { NotificationType } from './notification-type.enum';
-import { PaginateNotificationsDto, NotifyDto, CreateNotificationDto } from './notifications.dto';
+import {
+  PaginateNotificationsDto,
+  NotifyDto,
+  CreateNotificationDto,
+} from './notifications.dto';
 
 export interface PaginatedResult<T> {
   data: T[];
@@ -69,18 +73,22 @@ export class NotificationsService {
    * Batch insert notifications with idempotency.
    * Duplicate idempotency keys within 24h are silently dropped.
    */
-  async notifyBatch(notifications: CreateNotificationDto[]): Promise<Notification[]> {
+  async notifyBatch(
+    notifications: CreateNotificationDto[],
+  ): Promise<Notification[]> {
     if (notifications.length === 0) {
       return [];
     }
 
     const uniqueNotifications = this.deduplicateByKey(notifications);
     const existingKeys = await this.getExistingKeys(
-      uniqueNotifications.map(n => n.idempotencyKey).filter(Boolean) as string[]
+      uniqueNotifications
+        .map((n) => n.idempotencyKey)
+        .filter(Boolean) as string[],
     );
 
     const toInsert = uniqueNotifications.filter(
-      n => !n.idempotencyKey || !existingKeys.has(n.idempotencyKey)
+      (n) => !n.idempotencyKey || !existingKeys.has(n.idempotencyKey),
     );
 
     if (toInsert.length === 0) {
@@ -88,14 +96,16 @@ export class NotificationsService {
       return [];
     }
 
-    const entities = toInsert.map(dto => this.notificationRepo.create({
-      userId: dto.userId,
-      type: dto.type,
-      title: dto.title,
-      body: dto.body,
-      metadata: dto.metadata ?? {},
-      idempotencyKey: dto.idempotencyKey ?? null,
-    }));
+    const entities = toInsert.map((dto) =>
+      this.notificationRepo.create({
+        userId: dto.userId,
+        type: dto.type,
+        title: dto.title,
+        body: dto.body,
+        metadata: dto.metadata ?? {},
+        idempotencyKey: dto.idempotencyKey ?? null,
+      }),
+    );
 
     try {
       const saved = await this.notificationRepo.save(entities);
@@ -167,9 +177,11 @@ export class NotificationsService {
 
   // ─── Private Helpers ──────────────────────────────────────────────────────
 
-  private deduplicateByKey(notifications: CreateNotificationDto[]): CreateNotificationDto[] {
+  private deduplicateByKey(
+    notifications: CreateNotificationDto[],
+  ): CreateNotificationDto[] {
     const seen = new Set<string>();
-    return notifications.filter(n => {
+    return notifications.filter((n) => {
       if (!n.idempotencyKey) return true;
       if (seen.has(n.idempotencyKey)) return false;
       seen.add(n.idempotencyKey);
@@ -190,7 +202,7 @@ export class NotificationsService {
       .andWhere('n.createdAt > :cutoff', { cutoff })
       .getRawMany();
 
-    return new Set(existing.map(row => row.n_idempotencyKey));
+    return new Set(existing.map((row) => row.n_idempotencyKey));
   }
 
   private async sendEmail(dto: NotifyDto): Promise<void> {
