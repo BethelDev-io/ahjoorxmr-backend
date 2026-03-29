@@ -41,6 +41,7 @@ const mockUsersService = {
     jest.fn<
       (userId: string, refreshTokenHash: string | null) => Promise<void>
     >(),
+  incrementTokenVersion: jest.fn<(userId: string) => Promise<number>>(),
 };
 
 const mockJwtService = {
@@ -181,6 +182,7 @@ describe('AuthService', () => {
     mockUsersService.upsertByWalletAddress.mockResolvedValue({
       id: 'user-1',
       walletAddress: WALLET.publicKey(),
+      tokenVersion: 0,
     });
     mockJwtService.signAsync
       .mockResolvedValueOnce('access-token')

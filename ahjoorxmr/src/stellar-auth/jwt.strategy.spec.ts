@@ -4,6 +4,7 @@ import { ConfigService } from '@nestjs/config';
 import { JwtStrategy } from './jwt.strategy';
 import { UsersService } from '../users/users.service';
 import { UserRole } from '../users/entities/user.entity';
+import { TokenVersionCacheService } from '../common/redis/token-version-cache.service';
 
 describe('JwtStrategy', () => {
   let strategy: JwtStrategy;
@@ -20,7 +21,16 @@ describe('JwtStrategy', () => {
     findById: jest.fn(),
   };
 
+  const mockTokenVersionCache = {
+    get: jest.fn(),
+    set: jest.fn(),
+    invalidate: jest.fn(),
+  };
+
   beforeEach(async () => {
+    mockTokenVersionCache.get.mockResolvedValue(null);
+    mockTokenVersionCache.set.mockResolvedValue(undefined);
+
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         JwtStrategy,
@@ -31,6 +41,10 @@ describe('JwtStrategy', () => {
         {
           provide: UsersService,
           useValue: mockUsersService,
+        },
+        {
+          provide: TokenVersionCacheService,
+          useValue: mockTokenVersionCache,
         },
       ],
     }).compile();
@@ -53,11 +67,16 @@ describe('JwtStrategy', () => {
         id: 'user-id',
         walletAddress: 'GTEST...',
         role: UserRole.ADMIN,
+        tokenVersion: 0,
       };
 
       mockUsersService.findById.mockResolvedValue(mockUser);
 
-      const payload = { sub: 'user-id', walletAddress: 'GTEST...' };
+      const payload = {
+        sub: 'user-id',
+        walletAddress: 'GTEST...',
+        tokenVersion: 0,
+      };
       const result = await strategy.validate(payload);
 
       expect(result).toEqual({
@@ -71,7 +90,11 @@ describe('JwtStrategy', () => {
     it('should throw UnauthorizedException when user not found', async () => {
       mockUsersService.findById.mockResolvedValue(null);
 
-      const payload = { sub: 'non-existent-id', walletAddress: 'GTEST...' };
+      const payload = {
+        sub: 'non-existent-id',
+        walletAddress: 'GTEST...',
+        tokenVersion: 0,
+      };
 
       await expect(strategy.validate(payload)).rejects.toThrow(
         UnauthorizedException,
@@ -86,11 +109,16 @@ describe('JwtStrategy', () => {
         id: 'user-id',
         walletAddress: 'GTEST...',
         role: UserRole.MODERATOR,
+        tokenVersion: 0,
       };
 
       mockUsersService.findById.mockResolvedValue(mockUser);
 
-      const payload = { sub: 'user-id', walletAddress: 'GTEST...' };
+      const payload = {
+        sub: 'user-id',
+        walletAddress: 'GTEST...',
+        tokenVersion: 0,
+      };
       const result = await strategy.validate(payload);
 
       expect(result.role).toBe(UserRole.MODERATOR);

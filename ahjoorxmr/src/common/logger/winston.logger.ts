@@ -2,6 +2,7 @@ import { Injectable, LoggerService } from '@nestjs/common';
 import * as winston from 'winston';
 import { trace } from '@opentelemetry/api';
 import { getCorrelationId } from '../context/async-context';
+import { deepScrubForLog } from '../pii/pii-scrubber';
 
 @Injectable()
 export class WinstonLogger implements LoggerService {
@@ -25,6 +26,9 @@ export class WinstonLogger implements LoggerService {
             info.traceId = spanContext.traceId;
             info.spanId = spanContext.spanId;
           }
+
+          const scrubbed = deepScrubForLog(info) as winston.Logform.TransformableInfo;
+          Object.assign(info, scrubbed);
 
           return info;
         })(),

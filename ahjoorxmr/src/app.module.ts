@@ -80,7 +80,6 @@ import { CorrelationIdMiddleware } from './common/middleware/correlation-id.midd
     UsersModule,
     GroupsModule,
     MembershipsModule,
-    GroupsModule,
     ContributionsModule,
     StellarModule,
     EventListenerModule,

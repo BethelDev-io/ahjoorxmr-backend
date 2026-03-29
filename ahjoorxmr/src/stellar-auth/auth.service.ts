@@ -95,8 +95,12 @@ export class AuthService {
     // Upsert user
     const user = await this.usersService.upsertByWalletAddress(walletAddress);
 
-    // Issue tokens
-    const tokens = await this.issueTokens(user.id, walletAddress);
+    // Issue tokens (embed current tokenVersion for session revocation checks)
+    const tokens = await this.issueTokens(
+      user.id,
+      walletAddress,
+      user.tokenVersion ?? 0,
+    );
 
     // Store refresh token hash
     const refreshTokenHash = this.hashToken(tokens.refreshToken);
@@ -133,6 +137,7 @@ export class AuthService {
     const accessToken = await this.issueAccessToken(
       user.id,
       user.walletAddress,
+      user.tokenVersion ?? 0,
     );
     return { accessToken };
   }
@@ -141,6 +146,7 @@ export class AuthService {
     const user = await this.usersService.findByWalletAddress(walletAddress);
     if (user) {
       await this.usersService.updateRefreshTokenHash(user.id, null);
+      await this.usersService.incrementTokenVersion(user.id);
     }
   }
 
@@ -240,10 +246,11 @@ export class AuthService {
   private async issueTokens(
     userId: string,
     walletAddress: string,
+    tokenVersion: number,
   ): Promise<{ accessToken: string; refreshToken: string }> {
     const [accessToken, refreshToken] = await Promise.all([
-      this.issueAccessToken(userId, walletAddress),
-      this.issueRefreshToken(userId, walletAddress),
+      this.issueAccessToken(userId, walletAddress, tokenVersion),
+      this.issueRefreshToken(userId, walletAddress, tokenVersion),
     ]);
     return { accessToken, refreshToken };
   }
@@ -251,8 +258,9 @@ export class AuthService {
   private async issueAccessToken(
     userId: string,
     walletAddress: string,
+    tokenVersion: number,
   ): Promise<string> {
-    const payload: JwtPayload = { sub: userId, walletAddress };
+    const payload: JwtPayload = { sub: userId, walletAddress, tokenVersion };
     return this.jwtService.signAsync(payload, {
       privateKey: this.configService.get<string>('JWT_PRIVATE_KEY'),
       algorithm: 'RS256',
@@ -263,8 +271,9 @@ export class AuthService {
   private async issueRefreshToken(
     userId: string,
     walletAddress: string,
+    tokenVersion: number,
   ): Promise<string> {
-    const payload: JwtPayload = { sub: userId, walletAddress };
+    const payload: JwtPayload = { sub: userId, walletAddress, tokenVersion };
     return this.jwtService.signAsync(payload, {
       secret: this.configService.get<string>('JWT_REFRESH_SECRET'),
       algorithm: 'HS256',

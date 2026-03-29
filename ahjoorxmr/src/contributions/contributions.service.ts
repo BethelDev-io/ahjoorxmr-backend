@@ -152,15 +152,38 @@ export class ContributionsService {
         }
       }
 
-      // Create contribution
-      const contribution = this.contributionRepository.create(
-        createContributionDto,
-      );
+      const insertResult = await this.contributionRepository
+        .createQueryBuilder()
+        .insert()
+        .into(Contribution)
+        .values({
+          groupId,
+          userId,
+          walletAddress: createContributionDto.walletAddress,
+          roundNumber,
+          amount: createContributionDto.amount,
+          transactionHash,
+          timestamp: createContributionDto.timestamp,
+        })
+        .orIgnore()
+        .execute();
 
-      // Save to database - this will throw a 23505 error on unique constraint violations
-      // (transactionHash or the userId/groupId/roundNumber composite constraint)
-      const savedContribution =
-        await this.contributionRepository.save(contribution);
+      if (!insertResult.identifiers?.length) {
+        throw new ConflictException(
+          'A contribution for this user and round already exists in this group, or this transaction was already recorded',
+        );
+      }
+
+      const newId = insertResult.identifiers[0].id as string;
+      const savedContribution = await this.contributionRepository.findOne({
+        where: { id: newId },
+      });
+
+      if (!savedContribution) {
+        throw new ConflictException(
+          'A contribution for this user and round already exists in this group, or this transaction was already recorded',
+        );
+      }
 
       this.logger.log(
         `Contribution created with id ${savedContribution.id} for user ${userId} in group ${groupId}`,

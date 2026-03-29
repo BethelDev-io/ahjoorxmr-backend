@@ -1,10 +1,14 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { UserRepository } from './repositories/user.repository';
 import { User } from './entities/user.entity';
+import { TokenVersionCacheService } from '../common/redis/token-version-cache.service';
 
 @Injectable()
 export class UsersService {
-  constructor(private readonly userRepository: UserRepository) {}
+  constructor(
+    private readonly userRepository: UserRepository,
+    private readonly tokenVersionCache: TokenVersionCacheService,
+  ) {}
 
   async findById(id: string): Promise<User> {
     const user = await this.userRepository.findOne({ where: { id } });
@@ -45,14 +49,30 @@ export class UsersService {
     const user = await this.findById(userId);
     const newVersion = (user.tokenVersion || 0) + 1;
     await this.userRepository.update(userId, { tokenVersion: newVersion });
+    await this.tokenVersionCache.invalidate(userId);
     return newVersion;
   }
 
   async revokeAllSessions(userId: string): Promise<void> {
+    const user = await this.findById(userId);
     await this.userRepository.update(userId, {
       refreshTokenHash: null,
-      tokenVersion: (await this.findById(userId)).tokenVersion + 1,
+      tokenVersion: (user.tokenVersion ?? 0) + 1,
     });
+    await this.tokenVersionCache.invalidate(userId);
+  }
+
+  /**
+   * Revokes JWT sessions after a password change. Call from password-reset flows when implemented.
+   */
+  async revokeSessionsAfterPasswordChange(userId: string): Promise<void> {
+    await this.incrementTokenVersion(userId);
+  }
+
+  async banUser(userId: string, reason?: string): Promise<User> {
+    const user = await this.userRepository.banUser(userId, reason);
+    await this.tokenVersionCache.invalidate(userId);
+    return user;
   }
 
   async upsertByWalletAddress(walletAddress: string): Promise<User> {

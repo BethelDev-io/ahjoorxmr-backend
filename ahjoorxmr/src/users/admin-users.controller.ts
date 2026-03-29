@@ -1,7 +1,9 @@
 import {
+  Body,
   Controller,
   Get,
   Param,
+  Post,
   UseGuards,
   Version,
 } from '@nestjs/common';
@@ -50,5 +52,21 @@ export class AdminUsersController {
   })
   async findOne(@Param('id') id: string): Promise<User> {
     return this.usersService.findById(id);
+  }
+
+  @Post(':id/ban')
+  @Version('1')
+  @Roles('admin')
+  @ApiOperation({
+    summary: 'Ban user (Admin only)',
+    description:
+      'Bans the user and revokes all JWT sessions by incrementing tokenVersion.',
+  })
+  @ApiResponse({ status: 200, description: 'User banned', type: User })
+  async ban(
+    @Param('id') id: string,
+    @Body() body: { reason?: string },
+  ): Promise<User> {
+    return this.usersService.banUser(id, body?.reason);
   }
 }
