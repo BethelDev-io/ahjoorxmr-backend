@@ -1,7 +1,8 @@
-import { Module } from '@nestjs/common';
-import { BullModule } from '@nestjs/bullmq';
+import { Module, OnModuleInit } from '@nestjs/common';
+import { BullModule, InjectQueue } from '@nestjs/bullmq';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { TypeOrmModule } from '@nestjs/typeorm';
+import { Queue } from 'bullmq';
 
 import { QUEUE_NAMES, BACKOFF_DELAYS, RETRY_CONFIG } from './queue.constants';
 import { QueueService } from './queue.service';
@@ -12,6 +13,9 @@ import { EmailProcessor } from './email.processor';
 import { EventSyncProcessor } from './event-sync.processor';
 import { GroupSyncProcessor } from './group-sync.processor';
 import { PayoutReconciliationProcessor } from './payout-reconciliation.processor';
+import { JobFailureService } from './job-failure.service';
+import { JobFailuresAdminController } from './job-failures-admin.controller';
+import { JobFailure } from './entities/job-failure.entity';
 import { MailModule } from '../mail/mail.module';
 import { StellarModule } from '../stellar/stellar.module';
 import { NotificationsModule } from '../notification/notifications.module';
@@ -19,6 +23,7 @@ import { Group } from '../groups/entities/group.entity';
 import { Contribution } from '../contributions/entities/contribution.entity';
 import { Membership } from '../memberships/entities/membership.entity';
 import { PayoutTransaction } from '../groups/entities/payout-transaction.entity';
+import { Logger } from '@nestjs/common';
 
 /**
  * Custom backoff strategy registered globally via BullMQ worker options.
@@ -33,8 +38,8 @@ function customBackoffStrategy(attemptsMade: number): number {
 // Shared default job options applied at the queue level
 const sharedQueueOptions = {
   defaultJobOptions: {
-    attempts: RETRY_CONFIG.attempts,
-    backoff: { type: 'custom' as const },
+    attempts: 5,
+    backoff: { type: 'exponential' as const, delay: 2000 },
     removeOnComplete: { count: 1000, age: 86_400 },
     removeOnFail: false,
   },
@@ -51,6 +56,7 @@ const sharedQueueOptions = {
       Contribution,
       Membership,
       PayoutTransaction,
+      JobFailure,
     ]),
 
     // Register BullMQ with the shared ioredis client from RedisModule
@@ -85,7 +91,7 @@ const sharedQueueOptions = {
       },
     ),
   ],
-  controllers: [QueueAdminController],
+  controllers: [QueueAdminController, JobFailuresAdminController],
   providers: [
     DeadLetterService,
     QueueService,
@@ -94,12 +100,52 @@ const sharedQueueOptions = {
     EventSyncProcessor,
     GroupSyncProcessor,
     PayoutReconciliationProcessor,
+    JobFailureService,
   ],
   exports: [
     QueueService,
     BullBoardService,
+    JobFailureService,
     // Re-export BullModule so consuming modules can inject the queues directly if needed
     BullModule,
   ],
 })
-export class QueueModule {}
+export class QueueModule implements OnModuleInit {
+  private readonly logger = new Logger(QueueModule.name);
+
+  constructor(
+    private readonly jobFailureService: JobFailureService,
+    @InjectQueue(QUEUE_NAMES.EMAIL) private readonly emailQueue: Queue,
+    @InjectQueue(QUEUE_NAMES.EVENT_SYNC) private readonly eventSyncQueue: Queue,
+    @InjectQueue(QUEUE_NAMES.GROUP_SYNC) private readonly groupSyncQueue: Queue,
+    @InjectQueue(QUEUE_NAMES.PAYOUT_RECONCILIATION) private readonly payoutQueue: Queue,
+  ) {}
+
+  onModuleInit() {
+    const queues: Queue[] = [
+      this.emailQueue,
+      this.eventSyncQueue,
+      this.groupSyncQueue,
+      this.payoutQueue,
+    ];
+
+    for (const queue of queues) {
+      queue.on('failed', (job, err) => {
+        if (!job) return;
+        this.jobFailureService
+          .persist(
+            String(job.id),
+            job.name,
+            queue.name,
+            err,
+            job.attemptsMade,
+            job.data as Record<string, unknown>,
+          )
+          .catch((persistErr) =>
+            this.logger.error(`Failed to persist job failure: ${persistErr.message}`),
+          );
+      });
+    }
+    this.logger.log('Global BullMQ failed event listeners registered');
+  }
+}

@@ -24,6 +24,7 @@ import { Contribution } from './contributions/entities/contribution.entity';
 import { AuditLog } from './audit/entities/audit-log.entity';
 import { KycDocument } from './kyc/entities/kyc-document.entity';
 import { PayoutTransaction } from './groups/entities/payout-transaction.entity';
+import { JobFailure } from './bullmq/entities/job-failure.entity';
 import { KycModule } from './kyc/kyc.module';
 import { StellarModule } from './stellar/stellar.module';
 import { EventListenerModule } from './event-listener/event-listener.module';
@@ -62,6 +63,7 @@ import { CorrelationIdMiddleware } from './common/middleware/correlation-id.midd
             AuditLog,
             KycDocument,
             PayoutTransaction,
+            JobFailure,
           ],
           synchronize: isDevelopment, // Auto-create tables only in development
           logging: isDevelopment, // Enable logging only in development
