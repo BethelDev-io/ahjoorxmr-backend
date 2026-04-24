@@ -42,6 +42,7 @@ import { CommonModule } from './common/common.module';
 import { MailModule } from './mail/mail.module';
 import { MiddlewareConsumer, NestModule } from '@nestjs/common';
 import { CorrelationIdMiddleware } from './common/middleware/correlation-id.middleware';
+import { ProxyHopMiddleware } from './common/middleware/proxy-hop.middleware';
 import { ReplicaModule } from './database/replica.module';
 import { DatabaseRoutingModule } from './database/database-routing.module';
 import { ReadReplicaInterceptor } from './common/interceptors/read-replica.interceptor';
@@ -163,6 +164,6 @@ import { AdminModule } from './admin/admin.module';
 })
 export class AppModule implements NestModule {
   configure(consumer: MiddlewareConsumer) {
-    consumer.apply(CorrelationIdMiddleware).forRoutes('*');
+    consumer.apply(CorrelationIdMiddleware, ProxyHopMiddleware).forRoutes('*');
   }
 }
